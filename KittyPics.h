@@ -11,6 +11,10 @@ extern int16_t h;
 
 extern const uint8_t thundercleese[];
 extern const uint8_t sam[];
+extern const uint8_t Pcals[];
+extern const uint8_t Pcals2[];
+extern const uint8_t Peaches[];
+extern const uint8_t Rufalina[];
 
 }  // namespace KittyPics
 

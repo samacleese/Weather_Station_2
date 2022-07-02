@@ -43,12 +43,24 @@ void setup() {
   display.begin();
   display.setTextSize(3);
   display.setTextColor(0, 7);
-  display.setCursor(150, 370);
+  display.setCursor(150, 70);
+  sprintf(buffer, "Rufalina Address = %p", KittyPics::Rufalina);
+  display.print(buffer);
+
+  display.setCursor(150, 170);
+  sprintf(buffer, "Thundercleese Address = %p", KittyPics::thundercleese);
+  display.print(buffer);
+
+  display.setCursor(150, 270);
   sprintf(buffer, "Sam Address = %p", KittyPics::sam);
   display.print(buffer);
 
+  display.setCursor(150, 370);
+  sprintf(buffer, "Pcals Address = %p", KittyPics::Pcals);
+  display.print(buffer);
+
   display.setCursor(150, 470);
-  sprintf(buffer, "Thundercleese Address = %p", KittyPics::thundercleese);
+  sprintf(buffer, "Peaches Address = %p", KittyPics::Peaches);
   display.print(buffer);
 
   display.setCursor(150, 570);
@@ -57,17 +69,10 @@ void setup() {
 
   display.display();
   network->begin();
-  delay(5000);
+  delay(1000);
 }
 
 void loop() {
-
-  while (0) { 
-    const uint8_t* nextKitty = Kitties::getNextKitty();
-    display.drawBitmap3Bit(850, 50, nextKitty, Kitties::w, Kitties::h);
-    display.display();
-	delay(50000); 
-	}
 
   CurrentConditions curr(network);
 
