@@ -73,7 +73,6 @@ void setup() {
 
     display.display();
     network->begin();
-    delay(1000);
 
     CurrentConditions curr(network);
 
@@ -116,7 +115,6 @@ void setup() {
             Log.info(F("Reducing description font!" CR));
             display.setFont(Roboto_Light.at(104));
         }
-        delay(1000);
     }
     display.print(buffer);
 
