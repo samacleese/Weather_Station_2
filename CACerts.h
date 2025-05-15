@@ -1,4 +1,5 @@
 #include <map>
+#include <WString.h>
 
 class CACerts
 {
