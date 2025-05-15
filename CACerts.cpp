@@ -1,8 +1,8 @@
 
 #include "CACerts.h"
-#include <WString.h>
 
 #include <Arduino.h>  // for PROGMEM
+#include <WString.h>
 
 const char *CACerts::getCert(const String &host) {
     auto search = ca_certs.find(host);

@@ -1,8 +1,8 @@
 #ifndef KITTY_PICS
 #define KITTY_PICS
 
-#include <stdint.h>
 #include <Inkplate.h>
+#include <stdint.h>
 
 namespace KittyPics {
 

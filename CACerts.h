@@ -1,12 +1,12 @@
-#include <map>
 #include <WString.h>
 
-class CACerts
-{
-  public:
-    static const char * getCert(const String& host);
+#include <map>
 
-  private:
+class CACerts {
+   public:
+    static const char *getCert(const String &host);
+
+   private:
     static const std::map<String, const char *> ca_certs;
 };
 
