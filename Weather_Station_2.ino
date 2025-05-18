@@ -1,10 +1,10 @@
 #include <ArduinoLog.h>
 #include <Inkplate.h>
-#include <rom/rtc.h>  // Include ESP32 library for RTC (needed for rtc_get_reset_reason() function)
+#include <rom/rtc.h>
 
 #include <memory>
 
-#include "driver/rtc_io.h"  // Include ESP32 library for RTC pin I/O (needed for rtc_gpio_isolate() function)
+#include "driver/rtc_io.h"
 
 // TODO - move this to a seperate header file to add make_unique
 namespace std {
@@ -14,7 +14,6 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 }
 }  // namespace std
 
-// Next 3 lines are a precaution, you can ignore those, and the example would also work without them
 #ifndef ARDUINO_INKPLATE10
 #error "Wrong board selection for this example, please select Inkplate 10 in the boards menu."
 #endif
@@ -30,6 +29,7 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 
 #define US_PER_SEC 1000000ull
 #define TIME_TO_SLEEP_S 600
+#define ERROR_TIME_TO_SLEEP_S 300
 
 Inkplate display(INKPLATE_3BIT);
 
@@ -45,54 +45,103 @@ void setup() {
     Log.setShowLevel(true);
 
     display.begin();
-    display.setTextSize(3);
+
+    // Initialize display with loading message
+    display.clearDisplay();
+    display.setTextSize(1);
     display.setTextColor(0, 7);
-    display.setCursor(150, 70);
-    sprintf(buffer, "Rufalina Address = %p", KittyPics::Rufalina);
-    display.print(buffer);
-
-    display.setCursor(150, 170);
-    sprintf(buffer, "Thundercleese Address = %p", KittyPics::thundercleese);
-    display.print(buffer);
-
-    display.setCursor(150, 270);
-    sprintf(buffer, "Sam Address = %p", KittyPics::sam);
-    display.print(buffer);
-
-    display.setCursor(150, 370);
-    sprintf(buffer, "Pcals Address = %p", KittyPics::Pcals);
-    display.print(buffer);
-
-    display.setCursor(150, 470);
-    sprintf(buffer, "Peaches Address = %p", KittyPics::Peaches);
-    display.print(buffer);
-
-    display.setCursor(150, 570);
-    sprintf(buffer, (const char*)F("Next Kitty Address = %p"), Kitties::getNextKitty());
-    display.print(buffer);
-
+    display.setFont(Roboto_Medium.at(35));
+    display.setCursor(300, 350);
+    display.print("Weather Station Loading...");
     display.display();
+
     network->begin();
 
     CurrentConditions curr(network);
 
     const uint8_t* nextKitty = Kitties::getNextKitty();
 
-    curr.update();
+    // Update weather with retry capability
+    int updateResult = curr.update(3);  // Try up to 3 times
 
     display.clearDisplay();
 
-    // Draw Tempature
+    // Handle error cases with user feedback
+    if (updateResult != CURRENT_CONDITIONS_OK) {
+        // Show error message on display
+        display.setTextSize(1);
+        display.setTextColor(0, 7);
+        display.setCursor(100, 370);
+        sprintf(buffer, "Weather data error: %s", curr.getErrorString(updateResult));
+        display.print(buffer);
+
+        // If we have partial data, still show it
+        if (curr.temperature != -999 || curr.wind_speed != -999) {
+            display.setCursor(100, 405);
+            display.print("Showing partial data");
+        } else {
+            display.setCursor(100, 405);
+            display.print("No weather data available");
+
+            // Show time of attempt and error code for debugging
+            display.setCursor(100, 440);
+            time_t now;
+            time(&now);
+            struct tm timeinfo;
+            gmtime_r(&now, &timeinfo);
+            sprintf(buffer,
+                    "Last attempt: %02d:%02d:%02d UTC - Error code: %d",
+                    timeinfo.tm_hour,
+                    timeinfo.tm_min,
+                    timeinfo.tm_sec,
+                    updateResult);
+            display.print(buffer);
+
+            // Draw kitty for user comfort
+            display.drawBitmap3Bit(850, 50, nextKitty, Kitties::w, Kitties::h);
+
+            // Get and show battery info at least
+            int temperature = display.readTemperature();
+            float voltage = display.readBattery() + ADC_OFFSET;
+
+            display.setFont(Roboto_Light.at(42));
+            display.setCursor(860, 400);
+            display.print(voltage, 2);
+            display.print('V');
+            display.print(' ');
+            display.print(temperature, DEC);
+            display.print('C');
+
+            display.display();
+
+            // Go to sleep and try again later
+            rtc_gpio_isolate(GPIO_NUM_12);
+            esp_sleep_enable_ext1_wakeup((1ULL << 36), ESP_EXT1_WAKEUP_ALL_LOW);
+            esp_sleep_enable_timer_wakeup(ERROR_TIME_TO_SLEEP_S * US_PER_SEC);
+            esp_deep_sleep_start();
+            return;  // Exit early
+        }
+    }
+
+    // Draw Temperature with validity check
     display.setTextSize(1);
     display.setTextColor(0, 7);
     display.setFont(Roboto_Medium.at(150));
     display.setCursor(50, 150);
-    sprintf(buffer, "%d C", curr.temperature);
+    if (curr.temperature != -999) {
+        sprintf(buffer, "%d C", curr.temperature);
+    } else {
+        sprintf(buffer, "-- C");
+    }
     display.print(buffer);
 
-    // Draw Windspeed
+    // Draw Windspeed with validity check
     display.setCursor(50, 325);
-    sprintf(buffer, "%d km/h", curr.wind_speed);
+    if (curr.wind_speed != -999) {
+        sprintf(buffer, "%d km/h", curr.wind_speed);
+    } else {
+        sprintf(buffer, "-- km/h");
+    }
     display.print(buffer);
 
     // Raw Message
@@ -101,6 +150,7 @@ void setup() {
     sprintf(buffer, "%s", curr.raw_message);
     display.print(buffer);
 
+    // Weather description
     display.setFont(Roboto_Light.at(150));
     display.setCursor(50, 620);
     sprintf(buffer, "%s", curr.description);
@@ -118,35 +168,38 @@ void setup() {
     }
     display.print(buffer);
 
+    // Draw kitty
     display.drawBitmap3Bit(850, 50, nextKitty, Kitties::w, Kitties::h);
 
     // Get the temp and battery voltage
     int temperature;
     float voltage;
 
-    temperature = display.readTemperature();  // Read temperature from on-board temperature sensor
-    voltage =
-        display.readBattery();  // Read battery voltage (NOTE: Doe to ESP32 ADC accuracy, you should calibrate the ADC!)
+    temperature = display.readTemperature();
+    voltage = display.readBattery() + ADC_OFFSET;
 
-    voltage += ADC_OFFSET;
-
-    //    display.drawImage(battSymbol, 100, 100, 106, 45, BLACK); // Draw battery symbol at position X=100 Y=100
+    // Display system info
     display.setFont(Roboto_Light.at(42));
     display.setCursor(860, 400);
-    display.print(voltage, 2);  // Print battery voltage
+    display.print(voltage, 2);
     display.print('V');
     display.print(' ');
-
-    display.print(temperature, DEC);  // Print temperature
+    display.print(temperature, DEC);
     display.print('C');
+
+    // If there was a warning but we have data, show it
+    if (updateResult != CURRENT_CONDITIONS_OK) {
+        display.setFont(Roboto_Light.at(24));
+        display.setCursor(860, 450);
+        display.print("Warning: ");
+        display.print(curr.getErrorString(updateResult));
+    }
 
     display.display();
 
     // Goto deep sleep
-    rtc_gpio_isolate(GPIO_NUM_12);  // Isolate/disable GPIO12 on ESP32 (only to reduce power consumption in sleep)
-    // Enable wakup from deep sleep on gpio 36
+    rtc_gpio_isolate(GPIO_NUM_12);
     esp_sleep_enable_ext1_wakeup((1ULL << 36), ESP_EXT1_WAKEUP_ALL_LOW);
-
     esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP_S * US_PER_SEC);
     esp_deep_sleep_start();
 }
