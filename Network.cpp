@@ -5,6 +5,16 @@
 #include <HTTPClient.h>
 #include <WiFi.h>
 
+// Add NETWORK_CERT_ERROR constant
+enum {
+    NETWORK_OK = 0,
+    NETWORK_WIFI_ERROR = -1,
+    NETWORK_HTTP_ERROR = -2,
+    NETWORK_TIMEOUT_ERROR = -3,
+    NETWORK_NO_DATA = -4,
+    NETWORK_CERT_ERROR = -5 // SSL/CA validation error
+};
+
 Network::Network(const char* ssid, const char* password) {
     strncpy(m_ssid, ssid, sizeof(m_ssid));
     m_ssid[sizeof(m_ssid) - 1] = '\0';
@@ -105,6 +115,10 @@ int Network::get(WiFiClient& client, const String& url, StreamString& stream, in
                     continue;  // Try again
                 }
             } else {
+                // Check for SSL/CA validation error
+                if (handleSSLError(httpCode, https)) {
+                    return NETWORK_CERT_ERROR;
+                }
                 Log.error(F("[HTTPS] GET... failed, error: %s" CR), https.errorToString(httpCode).c_str());
                 https.end();
                 attempt++;
@@ -124,6 +138,8 @@ int Network::get(WiFiClient& client, const String& url, StreamString& stream, in
         return NETWORK_WIFI_ERROR;
     } else if (httpCode == HTTPC_ERROR_READ_TIMEOUT) {
         return NETWORK_TIMEOUT_ERROR;
+    } else if (handleSSLError(httpCode, nullptr)) {
+        return NETWORK_CERT_ERROR;
     } else {
         return NETWORK_NO_DATA;
     }
@@ -167,7 +183,21 @@ const char* Network::getErrorString(int errorCode) {
             return "Request timeout";
         case NETWORK_NO_DATA:
             return "No data received";
+        case NETWORK_CERT_ERROR:
+            return "SSL certificate validation failed. Update CA certificates or firmware.";
         default:
             return "Unknown error";
     }
+}
+
+// Helper function to handle SSL errors
+bool Network::handleSSLError(int httpCode, HTTPClient* https) {
+    if (httpCode == HTTPC_ERROR_SSL) {
+        Log.error(F("[HTTPS] SSL certificate validation failed. You may need to update your CA certificates or firmware." CR));
+        if (https) {
+            https->end();
+        }
+        return true;
+    }
+    return false;
 }
