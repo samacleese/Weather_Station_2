@@ -18,14 +18,14 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 #error "Wrong board selection for this example, please select Inkplate 10 in the boards menu."
 #endif
 
-#include "CACerts.h"
-#include "CurrentConditions.h"
-#include "DisplayLocations.h"
-#include "Fonts/Roboto_Light.h"
-#include "Fonts/Roboto_Medium.h"
-#include "Kitties.h"
-#include "KittyPics.h"
-#include "Network.h"
+#include "src/security/CACerts.h"
+#include "src/network/CurrentConditions.h"
+#include "src/display/DisplayLocations.h"
+#include "assets/fonts/Roboto_Light.h"
+#include "assets/fonts/Roboto_Medium.h"
+#include "src/display/Kitties.h"
+#include "src/display/KittyPics.h"
+#include "src/network/Network.h"
 
 #define US_PER_SEC 1000000ull
 #define TIME_TO_SLEEP_S 600

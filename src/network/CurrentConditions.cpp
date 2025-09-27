@@ -6,7 +6,7 @@
 
 #include <cstdio>
 
-#include "CACerts.h"
+#include "../security/CACerts.h"
 
 static const char* url_format = "https://api.weather.gov/stations/%s/observations/latest";
 static unsigned int json_size = 768;
