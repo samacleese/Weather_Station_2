@@ -52,11 +52,10 @@ def extract_certs_from_output(output):
                 # Get certificate details
                 cert_info = get_cert_info(temp_name)
                 cert_name = cert_info.get('cn', f'cert{cert_num}')
-                # Clean the name
-                cert_name = re.sub(r'[ ,.*]', '_', cert_name)
-                cert_name = re.sub(r'__', '_', cert_name)
-                cert_name = re.sub(r'_-_', '-', cert_name)
-                cert_name = re.sub(r'^_', '', cert_name)
+                # Clean the name - remove unprintable and problematic characters
+                cert_name = re.sub(r'[^\w.-]', '_', cert_name)
+                cert_name = re.sub(r'_+', '_', cert_name)
+                cert_name = re.sub(r'^_|_$', '', cert_name)
                 cert_name = cert_name.lower()
 
                 certs[cert_name] = {

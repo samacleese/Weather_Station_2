@@ -23,17 +23,17 @@ const char *CACerts::getCert(const String &host) {
 ***************/
 
 // clang-format off
-//  # Pulled 5/10/2025
+//  # Pulled 3/21/2026
 //  Certificate:
 //      Data:
 //          Version: 3 (0x2)
 //          Serial Number:
-//              06:fd:61:2f:3e:f1:40:8b:e0:9b:03:c7:1b:b0:06:71:e6:bd
+//              05:7f:c5:a3:d9:dc:0a:15:f3:3e:5d:80:e3:8e:5a:18:9d:44
 //          Signature Algorithm: sha256WithRSAEncryption
-//          Issuer: C = US, O = Let's Encrypt, CN = R11
+//          Issuer: C = US, O = Let's Encrypt, CN = R12
 //          Validity
-//              Not Before: Apr 16 19:19:17 2025 GMT
-//              Not After : Jul 15 19:19:16 2025 GMT
+//              Not Before: Mar 17 18:19:03 2026 GMT
+//              Not After : Jun 15 18:19:02 2026 GMT
 //          Subject: CN = weather.gov
 //          Subject Public Key Info:
 //              Public Key Algorithm: rsaEncryption
@@ -70,15 +70,14 @@ const char *CACerts::getCert(const String &host) {
 //              X509v3 Authority Key Identifier:
 //                  C5:CF:46:A4:EA:F4:C3:C0:7A:6C:95:C4:2D:B0:5E:92:2F:26:E3:B9
 //              Authority Information Access:
-//                  OCSP - URI:http://r11.o.lencr.org
-//                  CA Issuers - URI:http://r11.i.lencr.org/
+//                  CA Issuers - URI:http://r12.i.lencr.org/
 //              X509v3 Subject Alternative Name:
 //                  DNS:alerts-v2.weather.gov, DNS:alerts.weather.gov, DNS:amdar.ncep.noaa.gov, DNS:amdar.noaa.gov, DNS:amdarqa.ncep.noaa.gov, DNS:api.weather.gov, DNS:forecast.weather.gov, DNS:hads.ncep.noaa.gov, DNS:hadsqa.ncep.noaa.gov, DNS:inws.ncep.noaa.gov, DNS:inwsqa.ncep.noaa.gov, DNS:iris.ncep.noaa.gov, DNS:irisqa.ncep.noaa.gov, DNS:madis.ncep.noaa.gov, DNS:madis.noaa.gov, DNS:madisqa.ncep.noaa.gov, DNS:marine.weather.gov, DNS:natwc.arh.noaa.gov, DNS:opengeo.ncep.noaa.gov, DNS:preview-alerts.weather.gov, DNS:preview-api.weather.gov, DNS:preview-forecast.weather.gov, DNS:preview-idp.weather.gov, DNS:preview-marine.weather.gov, DNS:preview-opengeo.ncep.noaa.gov, DNS:preview-ra4-gifs.weather.gov, DNS:preview-radar.weather.gov, DNS:preview-spot.weather.gov, DNS:preview.weather.gov, DNS:ra4-gifs-idp.weather.gov, DNS:ra4-gifs.weather.gov, DNS:radar.weather.gov, DNS:ripcurrents.noaa.gov, DNS:spot.weather.gov, DNS:tsunami.gov, DNS:water.weather.gov, DNS:wcatwc.arh.noaa.gov, DNS:weather.gov, DNS:www.nws.noaa.gov, DNS:www.ripcurrents.noaa.gov, DNS:www.tsunami.gov, DNS:www.weather.gov, DNS:www.wrh.noaa.gov, DNS:wwwx.wrh.noaa.gov
 //              X509v3 Certificate Policies:
 //                  Policy: 2.23.140.1.2.1
 //              X509v3 CRL Distribution Points:
 //                  Full Name:
-//                    URI:http://r11.c.lencr.org/62.crl
+//                    URI:http://r12.c.lencr.org/69.crl
 //              CT Precertificate SCTs:
 //                  Signed Certificate Timestamp:
 //                      Version   : v1 (0x0)
@@ -175,13 +174,13 @@ const char *CACerts::getCert(const String &host) {
 //      Data:
 //          Version: 3 (0x2)
 //          Serial Number:
-//              8a:7d:3e:13:d6:2f:30:ef:23:86:bd:29:07:6b:34:f8
+//              c2:12:32:4b:70:a9:b4:91:71:dc:40:f7:e2:85:26:3c
 //          Signature Algorithm: sha256WithRSAEncryption
 //          Issuer: C = US, O = Internet Security Research Group, CN = ISRG Root X1
 //          Validity
 //              Not Before: Mar 13 00:00:00 2024 GMT
 //              Not After : Mar 12 23:59:59 2027 GMT
-//          Subject: C = US, O = Let's Encrypt, CN = R11
+//          Subject: C = US, O = Let's Encrypt, CN = R12
 //          Subject Public Key Info:
 //              Public Key Algorithm: rsaEncryption
 //                  Public-Key: (2048 bit)
@@ -349,6 +348,37 @@ const char PROGMEM r11_[] =
     "uYkQ4omYCTX5ohy+knMjdOmdH9c7SpqEWBDC86fiNex+O0XOMEZSa8DA\n"
     "-----END CERTIFICATE-----\n";
 
+const char PROGMEM r12_[] =
+    "-----BEGIN CERTIFICATE-----\n"
+    "MIIFBjCCAu6gAwIBAgIRAMISMktwqbSRcdxA9+KFJjwwDQYJKoZIhvcNAQELBQAw\n"
+    "TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh\n"
+    "cmNoIEdyb3VwMRUwEwYDVQQDEwxJU1JHIFJvb3QgWDEwHhcNMjQwMzEzMDAwMDAw\n"
+    "WhcNMjcwMzEyMjM1OTU5WjAzMQswCQYDVQQGEwJVUzEWMBQGA1UEChMNTGV0J3Mg\n"
+    "RW5jcnlwdDEMMAoGA1UEAxMDUjEyMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIB\n"
+    "CgKCAQEA2pgodK2+lP474B7i5Ut1qywSf+2nAzJ+Npfs6DGPpRONC5kuHs0BUT1M\n"
+    "5ShuCVUxqqUiXXL0LQfCTUA83wEjuXg39RplMjTmhnGdBO+ECFu9AhqZ66YBAJpz\n"
+    "kG2Pogeg0JfT2kVhgTU9FPnEwF9q3AuWGrCf4yrqvSrWmMebcas7dA8827JgvlpL\n"
+    "Thjp2ypzXIlhZZ7+7Tymy05v5J75AEaz/xlNKmOzjmbGGIVwx1Blbzt05UiDDwhY\n"
+    "XS0jnV6j/ujbAKHS9OMZTfLuevYnnuXNnC2i8n+cF63vEzc50bTILEHWhsDp7CH4\n"
+    "WRt/uTp8n1wBnWIEwii9Cq08yhDsGwIDAQABo4H4MIH1MA4GA1UdDwEB/wQEAwIB\n"
+    "hjAdBgNVHSUEFjAUBggrBgEFBQcDAgYIKwYBBQUHAwEwEgYDVR0TAQH/BAgwBgEB\n"
+    "/wIBADAdBgNVHQ4EFgQUALUp8i2ObzHom0yteD763OkM0dIwHwYDVR0jBBgwFoAU\n"
+    "ebRZ5nu25eQBc4AIiMgaWPbpm24wMgYIKwYBBQUHAQEEJjAkMCIGCCsGAQUFBzAC\n"
+    "hhZodHRwOi8veDEuaS5sZW5jci5vcmcvMBMGA1UdIAQMMAowCAYGZ4EMAQIBMCcG\n"
+    "A1UdHwQgMB4wHKAaoBiGFmh0dHA6Ly94MS5jLmxlbmNyLm9yZy8wDQYJKoZIhvcN\n"
+    "AQELBQADggIBAI910AnPanZIZTKS3rVEyIV29BWEjAK/duuz8eL5boSoVpHhkkv3\n"
+    "4eoAeEiPdZLj5EZ7G2ArIK+gzhTlRQ1q4FKGpPPaFBSpqV/xbUb5UlAXQOnkHn3m\n"
+    "FVj+qYv87/WeY+Bm4sN3Ox8BhyaU7UAQ3LeZ7N1X01xxQe4wIAAE3JVLUCiHmZL+\n"
+    "qoCUtgYIFPgcg350QMUIWgxPXNGEncT921ne7nluI02V8pLUmClqXOsCwULw+PVO\n"
+    "ZCB7qOMxxMBoCUeL2Ll4oMpOSr5pJCpLN3tRA2s6P1KLs9TSrVhOk+7LX28NMUlI\n"
+    "usQ/nxLJID0RhAeFtPjyOCOscQBA53+NRjSCak7P4A5jX7ppmkcJECL+S0i3kXVU\n"
+    "y5Me5BbrU8973jZNv/ax6+ZK6TM8jWmimL6of6OrX7ZU6E2WqazzsFrLG3o2kySb\n"
+    "zlhSgJ81Cl4tv3SbYiYXnJExKQvzf83DYotox3f0fwv7xln1A2ZLplCb0O+l/AK0\n"
+    "YE0DS2FPxSAHi0iwMfW2nNHJrXcY3LLHD77gRgje4Eveubi2xxa+Nmk/hmhLdIET\n"
+    "iVDFanoCrMVIpQ59XWHkzdFmoHXHBV7oibVjGSO7ULSQ7MJ1Nz51phuDJSgAIU7A\n"
+    "0zrLnOrAj/dfrlEWRhCvAgbuwLZX1A2sjNjXoPOHbsPiy+lO1KF8/XY7\n"
+    "-----END CERTIFICATE-----\n";
+
 const char PROGMEM digicert_global_g3_tls_ecc_sha384_2020_ca1_[] =
     "-----BEGIN CERTIFICATE-----\n"
     "MIIDeTCCAv+gAwIBAgIQCwDpLU1tcx/KMFnHyx4YhjAKBggqhkjOPQQDAzBhMQsw\n"
@@ -406,6 +436,6 @@ const char PROGMEM r13_[] =
 }  // namespace
 
 const std::map<String, const char *> CACerts::ca_certs{
-    {"api.weather.gov", r13_},
+    {"api.weather.gov", r12_},
     {"example.com", digicert_global_g3_tls_ecc_sha384_2020_ca1_},
 };
