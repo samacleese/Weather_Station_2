@@ -6,15 +6,32 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Weather Station 2 is an Arduino/ESP32 project for the Inkplate 10 E-paper display. It fetches weather data from weather.gov and displays it alongside rotating cat images. The device wakes every 10 minutes via deep sleep to conserve battery.
 
-## Build & Formatting
+## Build, Flash & Serial
+
+The device appears on `/dev/ttyUSB0`. The user must be in the `dialout` group (already configured). `arduino-cli board list` will show the port as "Unknown" — that's normal, the Inkplate FQBN can't be auto-detected.
 
 ```bash
-# Compile
-arduino-cli compile --fqbn Croduino_Boards:Inkplate:Inkplate10
+# Compile (run from repo root)
+arduino-cli compile --fqbn Croduino_Boards:Inkplate:Inkplate10 .
+
+# Flash
+arduino-cli upload --fqbn Croduino_Boards:Inkplate:Inkplate10 --port /dev/ttyUSB0 .
+
+# Read serial output (the arduino-cli monitor produces no output; use cat directly)
+stty -F /dev/ttyUSB0 115200 raw && cat /dev/ttyUSB0
 
 # Format (Google style, 120-char limit per .clang-format)
 clang-format -i src/**/*.cpp src/**/*.h
 ```
+
+**Expected boot output** (normal operation):
+```
+Waiting for WiFi to connect. connected
+Waiting for NTP time sync: I: Current time: ...
+I: [HTTPS] GET... code: 200
+```
+
+The `Wavefrom load failed! Upload new waveform in EEPROM.` warning on boot is a pre-existing Inkplate e-paper waveform message — not an error.
 
 ## Architecture
 
