@@ -1,10 +1,10 @@
-// Network.cpp - Improved error handling
+// ABOUTME: WiFi connection management and HTTPS request handling for ESP32.
+// ABOUTME: Provides retry logic, backoff, and SSL certificate error detection.
 #include "Network.h"
 
 #include <ArduinoLog.h>
 #include <HTTPClient.h>
 #include <WiFi.h>
-
 Network::Network(const char* ssid, const char* password) {
     strncpy(m_ssid, ssid, sizeof(m_ssid));
     m_ssid[sizeof(m_ssid) - 1] = '\0';
@@ -56,7 +56,7 @@ void Network::syncTime() {
     Log.notice(F("Current time: %s" CR), asctime(&timeinfo));
 }
 
-int Network::get(WiFiClient& client, const String& url, StreamString& stream, int retries, int timeout) {
+int Network::get(WiFiClientSecure& client, const String& url, StreamString& stream, int retries, int timeout) {
     HTTPClient https;
     int attempt = 0;
     int httpCode = 0;
@@ -105,6 +105,10 @@ int Network::get(WiFiClient& client, const String& url, StreamString& stream, in
                     continue;  // Try again
                 }
             } else {
+                if (isCertError(httpCode, client)) {
+                    https.end();
+                    return NETWORK_CERT_ERROR;
+                }
                 Log.error(F("[HTTPS] GET... failed, error: %s" CR), https.errorToString(httpCode).c_str());
                 https.end();
                 attempt++;
@@ -155,6 +159,20 @@ bool Network::reconnect(int maxAttempts) {
     return true;
 }
 
+bool Network::isCertError(int httpCode, WiFiClientSecure& client) {
+    // SSL failures surface as httpCode=-1 after cert validation fails.
+    // lastError() returns non-zero for both chain verification failures
+    // (MBEDTLS_ERR_X509_CERT_VERIFY_FAILED = -9984) and format errors
+    // (MBEDTLS_ERR_X509_INVALID_FORMAT = -8576).
+    char errBuf[100];
+    int sslErr = client.lastError(errBuf, sizeof(errBuf));
+    if (sslErr != 0) {
+        Log.error(F("[HTTPS] SSL error %d: %s" CR), sslErr, errBuf);
+        return true;
+    }
+    return false;
+}
+
 const char* Network::getErrorString(int errorCode) {
     switch (errorCode) {
         case NETWORK_OK:
@@ -167,6 +185,8 @@ const char* Network::getErrorString(int errorCode) {
             return "Request timeout";
         case NETWORK_NO_DATA:
             return "No data received";
+        case NETWORK_CERT_ERROR:
+            return "SSL certificate validation failed - check CA cert or run cert update";
         default:
             return "Unknown error";
     }
