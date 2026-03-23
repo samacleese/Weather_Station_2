@@ -26,7 +26,7 @@ class Network {
     void begin();
     void syncTime();
 
-    // Modified to return error code and allow retry configuration
+    // Fetches URL content into stream; retries on transient failures.
     int get(WiFiClientSecure& client, const String& url, StreamString& stream, int retries = 2, int timeout = 10000);
 
     // Get the text representation of an error code
