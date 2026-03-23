@@ -1,4 +1,5 @@
-// CurrentConditions.cpp - Improved error handling
+// ABOUTME: Weather.gov API client for fetching current conditions from a NWS station.
+// ABOUTME: Parses observation JSON and exposes temperature, wind, dew point, and description.
 #include "CurrentConditions.h"
 
 #include <ArduinoLog.h>
