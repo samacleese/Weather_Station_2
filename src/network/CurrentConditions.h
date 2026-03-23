@@ -1,4 +1,5 @@
-// CurrentConditions.h - Improved error handling
+// ABOUTME: Weather.gov API client for fetching current conditions from a NWS station.
+// ABOUTME: Parses observation JSON and exposes temperature, wind, dew point, and description.
 #ifndef CURRENT_CONDITIONS_H
 #define CURRENT_CONDITIONS_H
 #include <ArduinoJson.h>
@@ -16,6 +17,7 @@ const int CURRENT_CONDITIONS_JSON_ERROR = -2;
 const int CURRENT_CONDITIONS_NETWORK_ERROR = -3;
 const int CURRENT_CONDITIONS_DATA_MISSING = -4;
 const int CURRENT_CONDITIONS_INVALID_DATA = -5;
+const int CURRENT_CONDITIONS_CERT_ERROR = -6;
 
 class CurrentConditions {
    public:

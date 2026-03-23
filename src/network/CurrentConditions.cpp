@@ -1,4 +1,5 @@
-// CurrentConditions.cpp - Improved error handling
+// ABOUTME: Weather.gov API client for fetching current conditions from a NWS station.
+// ABOUTME: Parses observation JSON and exposes temperature, wind, dew point, and description.
 #include "CurrentConditions.h"
 
 #include <ArduinoLog.h>
@@ -54,6 +55,9 @@ int CurrentConditions::update(int retries) {
             case NETWORK_TIMEOUT_ERROR:
             case NETWORK_NO_DATA:
                 lastError = CURRENT_CONDITIONS_NETWORK_ERROR;
+                break;
+            case NETWORK_CERT_ERROR:
+                lastError = CURRENT_CONDITIONS_CERT_ERROR;
                 break;
             default:
                 lastError = CURRENT_CONDITIONS_ERROR;
@@ -209,6 +213,8 @@ const char* CurrentConditions::getErrorString(int errorCode) {
             return "Required data missing";
         case CURRENT_CONDITIONS_INVALID_DATA:
             return "Invalid data values";
+        case CURRENT_CONDITIONS_CERT_ERROR:
+            return "SSL certificate validation failed - check CA cert or run cert update";
         default:
             return "Unknown error";
     }
