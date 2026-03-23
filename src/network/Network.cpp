@@ -5,6 +5,7 @@
 #include <ArduinoLog.h>
 #include <HTTPClient.h>
 #include <WiFi.h>
+
 Network::Network(const char* ssid, const char* password) {
     strncpy(m_ssid, ssid, sizeof(m_ssid));
     m_ssid[sizeof(m_ssid) - 1] = '\0';
