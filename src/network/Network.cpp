@@ -106,7 +106,7 @@ int Network::get(WiFiClientSecure& client, const String& url, StreamString& stre
                     continue;  // Try again
                 }
             } else {
-                if (isCertError(httpCode, client)) {
+                if (isCertError(client)) {
                     https.end();
                     return NETWORK_CERT_ERROR;
                 }
@@ -160,7 +160,7 @@ bool Network::reconnect(int maxAttempts) {
     return true;
 }
 
-bool Network::isCertError(int httpCode, WiFiClientSecure& client) {
+bool Network::isCertError(WiFiClientSecure& client) {
     // SSL failures surface as httpCode=-1 after cert validation fails.
     // lastError() returns non-zero for both chain verification failures
     // (MBEDTLS_ERR_X509_CERT_VERIFY_FAILED = -9984) and format errors

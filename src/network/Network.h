@@ -6,7 +6,6 @@
 #include <Stream.h>
 #include <StreamString.h>
 #include <WString.h>
-#include <WiFiClient.h>
 #include <WiFiClientSecure.h>
 
 #include <memory>
@@ -34,7 +33,7 @@ class Network {
 
    private:
     bool reconnect(int maxAttempts = 7);
-    bool isCertError(int httpCode, WiFiClientSecure& client);
+    bool isCertError(WiFiClientSecure& client);
     char m_ssid[32];
     char m_password[32];
 };
