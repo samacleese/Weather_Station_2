@@ -63,6 +63,50 @@ python3 tools/cert_collector.py -u src/security/CACerts.cpp -f src/security/CACe
 
 Also save the new `.pem` to `assets/certificates/` for reference.
 
+## weather.gov API Reference
+
+The device uses the National Weather Service API at `https://api.weather.gov`.
+
+**OpenAPI spec:** `https://api.weather.gov/openapi.json`
+
+### Endpoint used
+
+```
+GET /stations/{stationId}/observations/latest
+```
+
+Optional query param: `require_qc` (boolean) — omitted, not currently used.
+
+### Response structure
+
+The response is a GeoJSON Feature. Relevant fields are under `properties`:
+
+| Field | Type | Units | Notes |
+|---|---|---|---|
+| `textDescription` | string | — | Human-readable summary, e.g. `"Clear"` |
+| `rawMessage` | string | — | METAR string; may be empty string (not null) |
+| `temperature` | QuantitativeValue | `wmoUnit:degC` | `{ value: 5.0, unitCode: "wmoUnit:degC", qualityControl: "V" }` |
+| `dewpoint` | QuantitativeValue | `wmoUnit:degC` | Same structure as temperature |
+| `windSpeed` | QuantitativeValue | `wmoUnit:km_h-1` | Fractional km/h, e.g. `7.416` |
+| `windDirection` | QuantitativeValue | `wmoUnit:degree_(angle)` | Not currently fetched |
+| `windGust` | QuantitativeValue | `wmoUnit:km_h-1` | May be null |
+| `barometricPressure` | QuantitativeValue | `wmoUnit:Pa` | Not currently fetched |
+| `relativeHumidity` | QuantitativeValue | `wmoUnit:percent` | Not currently fetched |
+| `windChill` | QuantitativeValue | `wmoUnit:degC` | Not currently fetched |
+
+QuantitativeValue shape:
+```json
+{
+  "value": 7.416,
+  "unitCode": "wmoUnit:km_h-1",
+  "qualityControl": "V"
+}
+```
+
+`qualityControl` values: `"V"` = verified, `"Z"` = no data/null observation.
+
+The code filters the response to only `textDescription`, `rawMessage`, `windSpeed`, `dewpoint`, and `temperature` using ArduinoJson's `DeserializationOption::Filter`.
+
 ## Adding Cat Images
 
 1. Add PNG to `assets/images/`
