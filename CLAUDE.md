@@ -17,8 +17,10 @@ arduino-cli compile --fqbn Croduino_Boards:Inkplate:Inkplate10 .
 # Flash
 arduino-cli upload --fqbn Croduino_Boards:Inkplate:Inkplate10 --port /dev/ttyUSB0 .
 
-# Read serial output (the arduino-cli monitor produces no output; use cat directly)
-stty -F /dev/ttyUSB0 115200 raw && cat /dev/ttyUSB0
+# Read serial output
+arduino-cli monitor --port /dev/ttyUSB0 --config baudrate=115200
+# Note: if the device is in deep sleep, no output will appear until the physical
+# wakeup button on the board is pressed.
 
 # Format (Google style, 120-char limit per .clang-format)
 clang-format -i src/**/*.cpp src/**/*.h
