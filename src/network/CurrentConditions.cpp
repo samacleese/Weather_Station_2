@@ -55,6 +55,9 @@ int CurrentConditions::update(int retries) {
             case NETWORK_NO_DATA:
                 lastError = CURRENT_CONDITIONS_NETWORK_ERROR;
                 break;
+            case NETWORK_CERT_ERROR:
+                lastError = CURRENT_CONDITIONS_CERT_ERROR;
+                break;
             default:
                 lastError = CURRENT_CONDITIONS_ERROR;
         }
@@ -209,6 +212,8 @@ const char* CurrentConditions::getErrorString(int errorCode) {
             return "Required data missing";
         case CURRENT_CONDITIONS_INVALID_DATA:
             return "Invalid data values";
+        case CURRENT_CONDITIONS_CERT_ERROR:
+            return "SSL certificate validation failed - check CA cert or run cert update";
         default:
             return "Unknown error";
     }
