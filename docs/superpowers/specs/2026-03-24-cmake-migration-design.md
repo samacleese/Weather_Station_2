@@ -16,10 +16,10 @@ Replace `arduino-cli compile` with CMake + `arduino-cmake-toolchain` as the buil
 
 This approach was validated by a spike that confirmed:
 - The toolchain correctly enumerates the Inkplate 10 board and all its menu options
-- `xtensa-esp32-elf-gcc` is found from the Arduino packages path
+- `xtensa-esp32-elf-gcc` is found via `ARDUINO_BOARD_RUNTIME_PLATFORM_PATH` = `~/.arduino15/packages/Croduino_Boards/hardware/Inkplate/1.0.1`
 - A minimal sketch compiles, links, and produces a flashable `.bin`
-- `compile_commands.json` is generated with `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON`
-- The only wrinkle is a missing `partitions.csv` in the build dir, fixed with one `file(COPY)` line
+- `compile_commands.json` is generated with `CMAKE_EXPORT_COMPILE_COMMANDS=ON` in `CMakeLists.txt`
+- The board uses `-std=gnu++11`; the existing `std::make_unique` polyfill is correct and necessary
 
 ## Repository Layout Changes
 
@@ -33,13 +33,19 @@ build/                       ← gitignored out-of-source build dir
 compile_commands.json        ← gitignored symlink → build/compile_commands.json
 ```
 
-`arduino-cmake-toolchain` does not support `.ino` files. `Weather_Station_2.ino` is renamed to `Weather_Station_2.cpp` and gains `#include <Arduino.h>` at the top. No other changes to that file.
+**The `.ino` rename:** `arduino-cmake-toolchain` does not support `.ino` files. `Weather_Station_2.ino` is renamed to `Weather_Station_2.cpp` and gains `#include <Arduino.h>` immediately after the existing includes. The Arduino IDE normally injects function forward declarations during `.ino` preprocessing, but this file has no helper functions — only `setup()` and `loop()` — so no forward declarations are needed. The rename is safe with only the `#include <Arduino.h>` addition.
+
+**The `assets/` include paths:** `Weather_Station_2.cpp` includes fonts as `"assets/fonts/Roboto_Light.h"` etc. Double-quoted relative includes resolve relative to the including file's directory (the project root), so these resolve correctly without any extra `target_include_directories` entry.
+
+**The partition table:** The toolchain's post-link step expects `partitions.csv` in the build directory. `CMakeLists.txt` copies it from the Inkplate platform directory at configure time using a two-step copy+rename (CMake 3.16 does not support `file(COPY ... RENAME ...)`).
 
 ## CMakeLists.txt
 
 ```cmake
 cmake_minimum_required(VERSION 3.16)
 project(WeatherStation CXX)
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # ── Firmware target ───────────────────────────────────────────────────────────
 add_executable(WeatherStation
@@ -66,17 +72,18 @@ target_link_arduino_libraries(WeatherStation PRIVATE
 target_enable_arduino_upload(WeatherStation)
 
 # ── Partition table (huge_app) ────────────────────────────────────────────────
+# file(COPY ... RENAME) is not available in CMake 3.16; use two-step copy+rename
 file(COPY
     "${ARDUINO_BOARD_RUNTIME_PLATFORM_PATH}/tools/partitions/huge_app.csv"
     DESTINATION "${CMAKE_BINARY_DIR}"
-    RENAME partitions.csv
 )
-
-# ── compile_commands.json for clangd ─────────────────────────────────────────
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+file(RENAME
+    "${CMAKE_BINARY_DIR}/huge_app.csv"
+    "${CMAKE_BINARY_DIR}/partitions.csv"
+)
 ```
 
-The `ARDUINO_BOARD_RUNTIME_PLATFORM_PATH` variable is set by the toolchain. If the exact name differs, the fallback is a path relative to `CMAKE_TOOLCHAIN_FILE`. Verify during implementation.
+Library names must match the installed Arduino library directory names. If a name doesn't resolve, the error is clear and the fix is renaming to match `arduino-cli lib list` output.
 
 ## cmake/BoardOptions.cmake
 
@@ -93,6 +100,11 @@ set(ARDUINO_INKPLATE_INKPLATE10_MENU_CPUFREQ_240 TRUE)
 
 `arduino-cmake-toolchain` is added as a git submodule at `cmake/Arduino-CMake-Toolchain/`. A submodule pins an exact commit, is transparent in `git diff`, and works offline after clone. `FetchContent` is avoided because it requires network access at configure time.
 
+```bash
+git submodule add https://github.com/a9183756-gh/Arduino-CMake-Toolchain.git \
+    cmake/Arduino-CMake-Toolchain
+```
+
 ## Build Workflow
 
 ### First-time setup
@@ -106,7 +118,6 @@ arduino-cli lib install InkplateLibrary ArduinoJson ArduinoLog LCBUrl
 ```bash
 cmake -DCMAKE_TOOLCHAIN_FILE=cmake/Arduino-CMake-Toolchain/Arduino-toolchain.cmake \
       -DARDUINO_BOARD_OPTIONS_FILE=cmake/BoardOptions.cmake \
-      -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
       -B build
 ```
 
@@ -117,7 +128,8 @@ cmake --build build
 
 ### Flash
 ```bash
-cmake --build build --target upload-WeatherStation SERIAL_PORT=/dev/ttyUSB0
+# SERIAL_PORT is an environment variable consumed by FirmwareUpload.cmake
+SERIAL_PORT=/dev/ttyUSB0 cmake --build build --target upload-WeatherStation
 ```
 
 ### Serial monitor
@@ -125,8 +137,9 @@ cmake --build build --target upload-WeatherStation SERIAL_PORT=/dev/ttyUSB0
 arduino-cli monitor --port /dev/ttyUSB0 --config baudrate=115200
 ```
 
-### Enable clangd (one-time after first build)
+### Enable clangd (one-time, after first successful build)
 ```bash
+# Build must exist before creating the symlink
 ln -sf build/compile_commands.json compile_commands.json
 ```
 
@@ -134,14 +147,32 @@ ln -sf build/compile_commands.json compile_commands.json
 
 | File | Change |
 |---|---|
+| `.gitmodules` | Add (submodule entry for `cmake/Arduino-CMake-Toolchain`) |
 | `cmake/Arduino-CMake-Toolchain/` | Add (git submodule) |
 | `cmake/BoardOptions.cmake` | Add |
 | `CMakeLists.txt` | Add |
 | `Weather_Station_2.ino` | Delete |
 | `Weather_Station_2.cpp` | Add (renamed + `#include <Arduino.h>`) |
 | `.gitignore` | Add `build/` and `compile_commands.json` |
-| `CLAUDE.md` | Update build commands |
-| `.claude/settings.local.json` | Remove `arduino-cli compile` permission |
+| `CLAUDE.md` | Replace compile/upload commands with CMake equivalents; remove arduino-cli compile entry |
+
+## CLAUDE.md Update Content
+
+Replace the existing Build/Flash/Serial section:
+
+```bash
+# Compile
+cmake -DCMAKE_TOOLCHAIN_FILE=cmake/Arduino-CMake-Toolchain/Arduino-toolchain.cmake \
+      -DARDUINO_BOARD_OPTIONS_FILE=cmake/BoardOptions.cmake \
+      -B build
+cmake --build build
+
+# Flash
+SERIAL_PORT=/dev/ttyUSB0 cmake --build build --target upload-WeatherStation
+
+# Read serial output
+arduino-cli monitor --port /dev/ttyUSB0 --config baudrate=115200
+```
 
 ## Out of Scope
 
@@ -157,7 +188,7 @@ The following downstream issues are enabled by this migration but not implemente
 
 - `cmake -B build ... && cmake --build build` produces a flashable `.bin`
 - `build/compile_commands.json` is generated and contains entries for project source files
-- `cmake --build build --target upload-WeatherStation SERIAL_PORT=/dev/ttyUSB0` flashes the device
+- `SERIAL_PORT=/dev/ttyUSB0 cmake --build build --target upload-WeatherStation` flashes the device
 - `arduino-cli` is used only for board/library installation, not as the build driver
-- `CLAUDE.md` reflects the new build commands
+- `CLAUDE.md` build commands reflect the new CMake invocation
 - All existing source files in `src/` are unchanged
