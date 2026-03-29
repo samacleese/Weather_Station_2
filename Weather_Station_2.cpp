@@ -1,3 +1,6 @@
+// ABOUTME: Main firmware entry point for the Weather Station.
+// ABOUTME: Initializes hardware, fetches weather, renders display, then deep-sleeps.
+#include <Arduino.h>
 #include <ArduinoLog.h>
 #include <Inkplate.h>
 #include <rom/rtc.h>
