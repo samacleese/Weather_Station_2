@@ -21,8 +21,9 @@ target_include_directories(WeatherStation PRIVATE src)
 
 # LCBUrl declares architectures=avr,esp32 but this platform identifies as arch "Inkplate".
 # Set path explicitly to bypass arduino-cmake-toolchain's architecture filter.
-if(NOT DEFINED ARDUINO_LIB_LCBUrl_PATH)
-    set(ARDUINO_LIB_LCBUrl_PATH "${ARDUINO_SKETCHBOOK_PATH}/libraries/LCBUrl" CACHE PATH "")
+if(NOT ARDUINO_LIB_LCBUrl_PATH)
+    set(ARDUINO_LIB_LCBUrl_PATH "$ENV{HOME}/Arduino/libraries/LCBUrl" CACHE PATH
+        "Path to LCBUrl library (set explicitly to bypass arch filter)")
 endif()
 
 # ── Arduino libraries ─────────────────────────────────────────────────────────
