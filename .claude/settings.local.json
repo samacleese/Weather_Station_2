@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(ls /home/jesse/Arduino/libraries/*/library.properties)",
+      "Bash(cmake:*)",
+      "Bash(ninja:*)",
+      "Bash(rm -rf build)",
+      "Bash(mkdir -p build)",
+      "Bash(rm -rf /home/jesse/Arduino/Weather_Station_2/build)",
+      "Bash(mkdir -p /home/jesse/Arduino/Weather_Station_2/build)",
+      "Bash(git:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
