@@ -16,7 +16,7 @@ Weather Station 2 is an Arduino project for the Inkplate 10 E-paper display that
 
 ```
 Weather_Station_2/
-├── Weather_Station_2.ino          # Main Arduino sketch
+├── Weather_Station_2.cpp          # Main firmware entry point
 ├── src/                           # Core application code
 │   ├── network/                   # Network and API components
 │   │   ├── Network.h/.cpp         # WiFi management
@@ -43,7 +43,7 @@ Weather_Station_2/
 
 ### Core Components
 
-- **Weather_Station_2.ino**: Main application file with setup() and empty loop() (uses deep sleep)
+- **Weather_Station_2.cpp**: Main application file with setup() and empty loop() (uses deep sleep)
 - **src/network/CurrentConditions**: Handles weather.gov API communication with robust error handling and retry logic
 - **src/network/Network**: WiFi management with connection recovery and timeout handling
 - **src/display/Kitties**: Manages rotating cat image display using pre-converted bitmap arrays
@@ -70,10 +70,9 @@ Weather_Station_2/
 
 ## Development Commands
 
-This is an Arduino project. Development can use Arduino IDE or arduino-cli:
-
-- **Compile**: `arduino-cli compile --fqbn Croduino_Boards:Inkplate:Inkplate10`
-- **Upload**: Use Arduino IDE "Upload" button or arduino-cli upload
+- **Configure**: `cmake -DCMAKE_TOOLCHAIN_FILE=cmake/Arduino-CMake-Toolchain/Arduino-toolchain.cmake -DARDUINO_BOARD_OPTIONS_FILE=cmake/BoardOptions.cmake -B build -G Ninja`
+- **Compile**: `cmake --build build`
+- **Flash**: `SERIAL_PORT=/dev/ttyUSB0 cmake --build build --target upload-WeatherStation`
 - **Code Formatting**: `clang-format -i src/**/*.cpp src/**/*.h` (Google style with 120 char limit)
 
 ## Utility Scripts
@@ -83,7 +82,7 @@ This is an Arduino project. Development can use Arduino IDE or arduino-cli:
 
 ## Network Configuration
 
-WiFi credentials are hardcoded in Weather_Station_2.ino setup() function:
+WiFi credentials are hardcoded in Weather_Station_2.cpp setup() function:
 ```cpp
 auto network = std::make_shared<Network>("SSID", "PASSWORD");
 ```

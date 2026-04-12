@@ -11,11 +11,18 @@ Weather Station 2 is an Arduino/ESP32 project for the Inkplate 10 E-paper displa
 The device appears on `/dev/ttyUSB0`. The user must be in the `dialout` group (already configured). `arduino-cli board list` will show the port as "Unknown" — that's normal, the Inkplate FQBN can't be auto-detected.
 
 ```bash
-# Compile (run from repo root)
-arduino-cli compile --fqbn Croduino_Boards:Inkplate:Inkplate10 .
+# Configure (run from repo root, once or when CMakeLists.txt changes)
+cmake \
+  -DCMAKE_TOOLCHAIN_FILE=cmake/Arduino-CMake-Toolchain/Arduino-toolchain.cmake \
+  -DARDUINO_BOARD_OPTIONS_FILE=cmake/BoardOptions.cmake \
+  -B build \
+  -G Ninja
+
+# Compile
+cmake --build build
 
 # Flash
-arduino-cli upload --fqbn Croduino_Boards:Inkplate:Inkplate10 --port /dev/ttyUSB0 .
+SERIAL_PORT=/dev/ttyUSB0 cmake --build build --target upload-WeatherStation
 
 # Read serial output
 arduino-cli monitor --port /dev/ttyUSB0 --config baudrate=115200
@@ -37,7 +44,7 @@ The `Wavefrom load failed! Upload new waveform in EEPROM.` warning on boot is a 
 
 ## Architecture
 
-All application logic lives in `setup()` in `Weather_Station_2.ino`. `loop()` is intentionally empty — the device deep-sleeps and reboots each cycle rather than looping.
+All application logic lives in `setup()` in `Weather_Station_2.cpp`. `loop()` is intentionally empty — the device deep-sleeps and reboots each cycle rather than looping.
 
 **Data flow:**
 1. Boot → init display → connect WiFi (via `Network`) → sync NTP
@@ -47,10 +54,10 @@ All application logic lives in `setup()` in `Weather_Station_2.ino`. `loop()` is
 
 **Key non-obvious details:**
 
-- `Weather_Station_2.ino` includes a `std::make_unique` polyfill (lines 9–15) because the ESP32 Arduino core doesn't provide it.
+- `Weather_Station_2.cpp` includes a `std::make_unique` polyfill (lines 12–18) because the ESP32 Arduino core doesn't provide it.
 - `Kitties` uses `RTC_DATA_ATTR` to persist the image rotation counter across deep sleep cycles without hitting flash.
 - `CACerts` is a static `std::map<String, const char*>` mapping hostnames to PEM certs embedded as PROGMEM strings. Used by `Network` to configure `WiFiClientSecure` before each HTTPS request.
-- WiFi credentials are hardcoded in `Weather_Station_2.ino` — there is no config file.
+- WiFi credentials are hardcoded in `Weather_Station_2.cpp` — there is no config file.
 - Weather station is hardcoded as `KBFI` (Seattle/Boeing Field) in `CurrentConditions.cpp`.
 
 ## Certificate Updates
