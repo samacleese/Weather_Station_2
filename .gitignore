@@ -1,3 +1,5 @@
 *.sw[op]
 build/
 compile_commands.json
+Inkplate-Arduino-library/
+.private-journal/
