@@ -105,7 +105,8 @@ void setup() {
 
             // Get and show battery info at least
             int temperature = display.readTemperature();
-            float voltage = display.readBattery() + ADC_OFFSET;
+            float rawBattery = display.readBattery();
+            float voltage = rawBattery + ADC_OFFSET;
 
             display.setFont(Roboto_Light.at(42));
             display.setCursor(860, 400);
@@ -114,6 +115,12 @@ void setup() {
             display.print(' ');
             display.print(temperature, DEC);
             display.print('C');
+
+            display.setFont(Roboto_Light.at(24));
+            display.setCursor(860, 455);
+            display.print("raw: ");
+            display.print(rawBattery, 3);
+            display.print('V');
 
             display.display();
 
@@ -179,7 +186,8 @@ void setup() {
     float voltage;
 
     temperature = display.readTemperature();
-    voltage = display.readBattery() + ADC_OFFSET;
+    float rawBattery = display.readBattery();
+    voltage = rawBattery + ADC_OFFSET;
 
     // Display system info
     display.setFont(Roboto_Light.at(42));
@@ -190,10 +198,16 @@ void setup() {
     display.print(temperature, DEC);
     display.print('C');
 
+    display.setFont(Roboto_Light.at(24));
+    display.setCursor(860, 455);
+    display.print("raw: ");
+    display.print(rawBattery, 3);
+    display.print('V');
+
     // If there was a warning but we have data, show it
     if (updateResult != CURRENT_CONDITIONS_OK) {
         display.setFont(Roboto_Light.at(24));
-        display.setCursor(860, 450);
+        display.setCursor(860, 490);
         display.print("Warning: ");
         display.print(curr.getErrorString(updateResult));
     }
