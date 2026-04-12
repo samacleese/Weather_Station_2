@@ -28,6 +28,7 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 #include "assets/fonts/Roboto_Medium.h"
 #include "src/display/Kitties.h"
 #include "src/display/KittyPics.h"
+#include "src/network/BatteryLogger.h"
 #include "src/network/Network.h"
 
 #define US_PER_SEC 1000000ull
@@ -213,6 +214,12 @@ void setup() {
     }
 
     display.display();
+
+    // Log battery reading for discharge curve calibration
+    time_t now;
+    time(&now);
+    BatteryLogger batteryLogger("http://192.168.1.2:5000/weather-station/data");
+    batteryLogger.log(now, rawBattery, voltage);
 
     // Goto deep sleep
     rtc_gpio_isolate(GPIO_NUM_12);
