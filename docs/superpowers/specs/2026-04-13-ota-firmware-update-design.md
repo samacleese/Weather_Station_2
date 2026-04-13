@@ -187,7 +187,7 @@ Steps:
 | `size` | Exact byte count of `.bin` |
 | `sha256` | Hex SHA-256 of raw `.bin` |
 | `signature` | Base64 ECDSA P-256 signature over the SHA-256 digest bytes |
-| `url` | Direct HTTP link to raw binary on Pi json-store |
+| `url` | Direct HTTP link to raw binary on Pi json-store. The Pi IP is embedded in the manifest by `ota_publish.py` via `--pi-host`. If the Pi's IP changes, re-running `ota_publish.py` generates an updated manifest with the new URL — intentional for a controlled local network environment. |
 | `min_battery_mv` | Device refuses OTA if battery is below this threshold |
 
 ### Why ECDSA P-256
@@ -202,7 +202,7 @@ Steps:
 
 ## Phase 3: OTAManager
 
-### Spikes (sequential; each must pass before the next)
+### Spikes (run in order; each must pass before the next)
 
 **Spike 1 — Streaming HTTP download:**
 Stream any HTTP binary from the Pi in 4KB chunks, accumulate SHA-256, log final hash. Success: hash matches expected; completes without OOM or timeout.
@@ -212,6 +212,22 @@ Generate known P-256 key pair in Python; sign a test digest; hardcode key + sign
 
 **Spike 3 — OTA write:**
 Stream a test binary to `app1` via `esp_ota_begin/write/end`, set boot partition, restart. Success: `esp_ota_get_running_partition()->label` prints `"app1"`.
+
+**Spike 4 — Button GPIO poll (low risk):**
+Display a message, poll `digitalRead(36)` for 10 seconds, print result to serial. Success: press reliably reads LOW; idle reads HIGH. Confirms GPIO 36 behaviour during active (non-sleep) operation matches the deep-sleep wakeup configuration.
+
+### `UpdateInfo` Struct
+
+```cpp
+struct UpdateInfo {
+    uint64_t version;       // YYYYMMDDNNN — exceeds uint32_t max, must be 64-bit
+    uint32_t size;          // exact byte count from manifest (informational only; not passed to esp_ota_begin)
+    char sha256[65];        // 64 hex chars + null terminator
+    char signature[200];    // base64 DER ECDSA signature (~100 chars; 200 gives headroom)
+    char url[128];          // URL to raw binary on Pi json-store
+    int min_battery_mv;     // minimum battery in millivolts to proceed
+};
+```
 
 ### `OTAManager::checkForUpdate()`
 
@@ -224,7 +240,7 @@ Stream a test binary to `app1` via `esp_ota_begin/write/end`, set boot partition
 
 Call sequence (order is critical for safe abort):
 
-1. `esp_ota_begin(update_partition, info.size, &handle)` — obtain handle
+1. `esp_ota_begin(update_partition, OTA_SIZE_UNKNOWN, &handle)` — obtain handle. `OTA_SIZE_UNKNOWN` is used because the manifest `size` field is not covered by the ECDSA signature (which signs only the binary's SHA-256 digest, not the manifest JSON). On a plain HTTP channel, passing an attacker-controlled `size` to `esp_ota_begin()` is unsafe. Content length is validated implicitly when the SHA-256 over the streamed bytes matches the manifest's `sha256` field.
 2. For each 4KB chunk: `esp_ota_write(handle, chunk, len)` + SHA-256 accumulator update
 3. After stream: verify computed SHA-256 against manifest `sha256` field
 4. If SHA-256 passes: verify ECDSA P-256 signature over SHA-256 digest using `mbedtls_ecdsa_verify()` with embedded public key
@@ -240,12 +256,6 @@ GPIO 36 (`WAKE_BUTTON_GPIO`) is already wired to the physical wake button. Durin
 - Poll `digitalRead(36) == LOW` in a 100ms loop
 
 **WiFi during poll:** The WiFi connection stays active during the 30s window. If the connection to the Pi drops between the manifest fetch and the binary download, `performUpdate()` returns `false` and the device falls through to normal weather display — an acceptable failure mode.
-
-### Spike 4 — Button GPIO poll (low risk)
-
-Short test: display message, poll `digitalRead(36)` for 10 seconds, print result to serial. Success: press reliably reads LOW; idle reads HIGH.
-
-Run this spike before the full integration, even though it is low risk — confirms GPIO 36 behaviour during active (non-sleep) operation is as expected.
 
 ### Integration in `Weather_Station_2.cpp`
 
