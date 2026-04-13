@@ -75,7 +75,7 @@ The SPIFFS image is flashed once via USB using esptool. OTA never touches the SP
 
 ### New Module: `src/display/AssetLoader`
 
-Wraps SPIFFS open + `ps_malloc` + `GFXfont` construction. Called once per boot before rendering. Must call `SPIFFS.begin()` (or require the caller to have done so) before any file operations — failure to mount SPIFFS produces a silent null return from `SPIFFS.open()`. Provides:
+Wraps SPIFFS open + `ps_malloc` + `GFXfont` construction. Called once per boot before rendering. `AssetLoader` calls `SPIFFS.begin()` internally before any file operations — it does not require the caller to do so. Failure to mount SPIFFS produces a silent null return from `SPIFFS.open()`, so `AssetLoader` must check the return value and log/assert on failure. Provides:
 - `uint8_t* loadImage(const char* path)` — loads raw image binary into PSRAM
 - `GFXfont* loadFont(const char* bitmapPath, const char* glyphPath, ...)` — loads font data into PSRAM, constructs and returns `GFXfont` struct
 
@@ -161,12 +161,14 @@ python3 tools/ota_publish.py \
 
 Steps:
 1. Read `VERSION` file
-2. Read `.bin`, compute SHA-256
-3. Sign SHA-256 digest with ECDSA P-256 private key
-4. Base64-encode DER signature
+2. Read `.bin` as raw bytes; compute SHA-256 digest (32 bytes)
+3. Sign the 32-byte SHA-256 digest using ECDSA P-256 with `Prehashed()` — pass the digest bytes, not the raw binary, to the `cryptography` library's `sign()` call: `key.sign(digest_bytes, ec.ECDSA(utils.Prehashed(hashes.SHA256())))`. This matches what `mbedtls_ecdsa_verify()` on the device expects: the hash input, not the raw binary.
+4. Base64-encode the DER-encoded signature
 5. Write `manifest.json` locally
 6. `PUT` manifest to `http://<pi-host>/ota-firmware/data`
 7. `PUT` raw binary to `http://<pi-host>/ota-firmware/binaries/firmware.bin`
+
+**Sign/verify contract:** Both sides operate on the SHA-256 digest bytes (32 bytes), not the raw firmware. Python signs the pre-computed digest; `mbedtls_ecdsa_verify()` receives the same 32-byte digest. This must be consistent — if Python uses `ECDSA(SHA256())` (library hashes internally), `mbedtls_ecdsa_verify()` must receive the raw binary, which is not feasible at ~1.25MB. Use `Prehashed` on the Python side.
 
 ### Manifest Format
 
@@ -229,6 +231,19 @@ struct UpdateInfo {
 };
 ```
 
+### Constants
+
+```cpp
+// In Weather_Station_2.cpp (or a dedicated config header)
+#define OTA_MANIFEST_URL "http://192.168.1.2:5000/ota-firmware/data"
+```
+
+`FIRMWARE_VERSION` is injected at compile time by CMake from the `VERSION` file as a bare integer. Declare it as `uint64_t` at the point of use to avoid truncation:
+
+```cpp
+static const uint64_t COMPILED_VERSION = FIRMWARE_VERSION;
+```
+
 ### `OTAManager::checkForUpdate()`
 
 - `GET /ota-firmware/data` via plain HTTP (same pattern as `BatteryLogger`)
@@ -240,12 +255,14 @@ struct UpdateInfo {
 
 Call sequence (order is critical for safe abort):
 
-1. `esp_ota_begin(update_partition, OTA_SIZE_UNKNOWN, &handle)` — obtain handle. `OTA_SIZE_UNKNOWN` is used because the manifest `size` field is not covered by the ECDSA signature (which signs only the binary's SHA-256 digest, not the manifest JSON). On a plain HTTP channel, passing an attacker-controlled `size` to `esp_ota_begin()` is unsafe. Content length is validated implicitly when the SHA-256 over the streamed bytes matches the manifest's `sha256` field.
+1. `esp_ota_begin(update_partition, OTA_SIZE_UNKNOWN, &handle)` — obtain handle. `OTA_SIZE_UNKNOWN` avoids a second source of truth: the manifest `size` field is informational only and not signed. Content integrity is validated entirely by the SHA-256 + ECDSA checks in steps 3–4; the actual byte count is implicitly verified when the SHA-256 over the streamed bytes matches the manifest `sha256` field.
 2. For each 4KB chunk: `esp_ota_write(handle, chunk, len)` + SHA-256 accumulator update
 3. After stream: verify computed SHA-256 against manifest `sha256` field
 4. If SHA-256 passes: verify ECDSA P-256 signature over SHA-256 digest using `mbedtls_ecdsa_verify()` with embedded public key
 5. If both checks pass: `esp_ota_end(handle)` → `esp_ota_set_boot_partition()` → `esp_restart()`
 6. If either check fails: `esp_ota_abort(handle)` → return `false` (running partition untouched)
+
+**HTTP timeout:** Set `HTTPClient::setTimeout()` to a reasonable value (e.g., 30s) before beginning the stream. On a local network the Pi is unlikely to disappear mid-stream, but without a timeout the device will hang indefinitely with WiFi active if the connection drops.
 
 **Important:** `esp_ota_end()` is called only after both SHA-256 and ECDSA checks pass. Calling `esp_ota_abort(handle)` before `esp_ota_end()` is always safe — it discards the incomplete write. Calling abort *after* `esp_ota_end()` is undefined; this ordering prevents that.
 
@@ -271,8 +288,7 @@ if (ota.checkForUpdate(OTA_MANIFEST_URL, info)) {
     display.clearDisplay();
     display.setFont(/* 35pt */);
     display.setCursor(50, 350);
-    // %llu is broken on ESP32 Arduino (newlib-nano omits 64-bit printf).
-    // Use PRIu64 from <inttypes.h> or format the version separately.
+    // PRIu64 requires <inttypes.h>; %llu is broken on ESP32 Arduino (newlib-nano).
     display.printf("Firmware v%" PRIu64 " available\nPress WAKE to install\n(30s to skip)", info.version);
     // Battery shown on splash for user awareness; a second read is taken at
     // confirmation time for the safety threshold check (intentional — the
@@ -334,7 +350,7 @@ if (ota.checkForUpdate(OTA_MANIFEST_URL, info)) {
 |---|---|
 | `CMakeLists.txt` | Use `ota_partitions.csv`; inject `VERSION` as `FIRMWARE_VERSION`; add new sources |
 | `cmake/BoardOptions.cmake` | Disable `HUGE_APP`, enable custom partition scheme |
-| `Weather_Station_2.cpp` | Add OTA check block; load assets via `AssetLoader` |
+| `Weather_Station_2.cpp` | Add OTA check block; load assets via `AssetLoader`; add `#include <inttypes.h>` for `PRIu64`; define `OTA_MANIFEST_URL` |
 | `src/display/KittyPics.h/.cpp` | Remove large PROGMEM arrays (replaced by SPIFFS files) |
 | `assets/fonts/Roboto_Light.h`, `Roboto_Medium.h` | Remove large PROGMEM font sizes (replaced by SPIFFS files) |
 
