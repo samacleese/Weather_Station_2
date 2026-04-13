@@ -298,7 +298,8 @@ if (ota.checkForUpdate(OTA_MANIFEST_URL, info)) {
     // Battery shown on splash for user awareness; a second read is taken at
     // confirmation time for the safety threshold check (intentional — the
     // confirmation-time reading is what matters for flash safety).
-    display.printf("\nBattery: %.2fV", (display.readBattery() + ADC_OFFSET));
+    snprintf(otaBuf, sizeof(otaBuf), "\nBattery: %.2fV", (display.readBattery() + ADC_OFFSET));
+    display.print(otaBuf);
     display.display();
 
     // Poll GPIO 36 for 30s
