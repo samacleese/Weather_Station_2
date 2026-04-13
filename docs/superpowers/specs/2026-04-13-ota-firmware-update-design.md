@@ -223,7 +223,7 @@ Display a message, poll `digitalRead(36)` for 10 seconds, print result to serial
 ```cpp
 struct UpdateInfo {
     uint64_t version;       // YYYYMMDDNNN — exceeds uint32_t max, must be 64-bit
-    uint32_t size;          // exact byte count from manifest (informational only; not passed to esp_ota_begin)
+    uint32_t size;          // exact byte count from manifest (informational only; not passed to esp_ota_begin; may be used for progress display)
     char sha256[65];        // 64 hex chars + null terminator
     char signature[200];    // base64 DER ECDSA signature (~100 chars; 200 gives headroom)
     char url[128];          // URL to raw binary on Pi json-store
@@ -244,14 +244,16 @@ struct UpdateInfo {
 static const uint64_t COMPILED_VERSION = FIRMWARE_VERSION;
 ```
 
-### `OTAManager::checkForUpdate()`
+### `OTAManager::checkForUpdate(const char* manifestUrl, UpdateInfo& info)`
 
-- `GET /ota-firmware/data` via plain HTTP (same pattern as `BatteryLogger`)
+- `GET manifestUrl` via plain HTTP (same pattern as `BatteryLogger`)
 - Parse with `ArduinoJson` (`StaticJsonDocument<1024>` — raw content is ~250–300 bytes; ArduinoJson tree overhead for 6 fields adds ~288 bytes, totalling ~550–600 bytes worst case; 1024 gives safe headroom)
 - Compare `version` field to compiled-in `FIRMWARE_VERSION`
-- Return `true` + populate `UpdateInfo` struct if manifest version is greater
+- Return `true` + populate `info` struct if manifest version is greater
 
-### `OTAManager::performUpdate()`
+### `OTAManager::performUpdate(const UpdateInfo& info)`
+
+**API note:** `OTAManager` uses the ESP-IDF native OTA API directly (`esp_ota_ops.h`, `esp_app_format.h`), not the Arduino `Update` library. The two are mutually exclusive — do not mix them. The native API is required here because it exposes `esp_ota_abort()` and partition-level control.
 
 Call sequence (order is critical for safe abort):
 
@@ -288,8 +290,11 @@ if (ota.checkForUpdate(OTA_MANIFEST_URL, info)) {
     display.clearDisplay();
     display.setFont(/* 35pt */);
     display.setCursor(50, 350);
+    // display.printf() is not part of the Inkplate/Print API. Use snprintf + print.
     // PRIu64 requires <inttypes.h>; %llu is broken on ESP32 Arduino (newlib-nano).
-    display.printf("Firmware v%" PRIu64 " available\nPress WAKE to install\n(30s to skip)", info.version);
+    char otaBuf[128];
+    snprintf(otaBuf, sizeof(otaBuf), "Firmware v%" PRIu64 " available\nPress WAKE to install\n(30s to skip)", info.version);
+    display.print(otaBuf);
     // Battery shown on splash for user awareness; a second read is taken at
     // confirmation time for the safety threshold check (intentional — the
     // confirmation-time reading is what matters for flash safety).
