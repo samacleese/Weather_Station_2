@@ -12,6 +12,7 @@ add_executable(WeatherStation
     src/display/DisplayLocations.cpp
     src/display/Kitties.cpp
     src/display/KittyPics.cpp
+    src/network/BatteryLogger.cpp
     src/network/CurrentConditions.cpp
     src/network/Network.cpp
     src/security/CACerts.cpp
