@@ -20,7 +20,7 @@ def main():
     parser.add_argument("--port", default=5000, type=int)
     args = parser.parse_args()
 
-    url = f"http://{args.host}:{args.port}/weather-station/data"
+    url = f"http://{args.host}:{args.port}/weather-station/documents/battery-log"
 
     try:
         with urllib.request.urlopen(url, timeout=5) as resp:

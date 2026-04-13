@@ -218,7 +218,7 @@ void setup() {
     // Log battery reading for discharge curve calibration
     time_t now;
     time(&now);
-    BatteryLogger batteryLogger("http://192.168.1.2:5000/weather-station/data");
+    BatteryLogger batteryLogger("http://192.168.1.2:5000/weather-station/documents/battery-log");
     batteryLogger.log(now, rawBattery, voltage);
 
     // Goto deep sleep

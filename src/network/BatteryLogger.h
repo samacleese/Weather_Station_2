@@ -1,5 +1,5 @@
 // ABOUTME: Posts battery voltage readings to a local JSON store for discharge curve analysis.
-// ABOUTME: Appends {ts, raw, adj} entries to a server-side array capped at MAX_ENTRIES.
+// ABOUTME: Sends a single {ts, raw, adj} entry per reading; the server appends and manages the array.
 #ifndef BATTERY_LOGGER_H
 #define BATTERY_LOGGER_H
 
@@ -14,7 +14,6 @@ class BatteryLogger {
     void log(time_t timestamp, float rawVoltage, float adjustedVoltage);
 
    private:
-    static const int MAX_ENTRIES = 500;
     String m_url;
 };
 
