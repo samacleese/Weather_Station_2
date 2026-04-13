@@ -26,8 +26,8 @@ The firmware currently compiles to ~1.75MB. Asset externalization (Phase 0) shri
 **Dependency:** The json-store raw binary endpoint (`PUT/GET /:app/binaries/:id`) does not yet exist. This spec assumes it exists. A feature request will be filed with the json-store team once this spec is finalized.
 
 **Phasing (phase-sequential; each phase's spike(s) gate its implementation):**
-- Phase 0: PSRAM font spike → asset externalization to SPIFFS
-- Phase 1: Partition table spike → dual-OTA + SPIFFS layout (USB flash)
+- Phase 0: PSRAM font spike (independent) → if passes, implement `AssetLoader` and `asset_packer.py`; SPIFFS integration deferred until Phase 1 partition table is live
+- Phase 1: Partition table spike → dual-OTA + SPIFFS layout (USB flash, ships with Phase 0 SPIFFS image)
 - Phase 2: Python signing tooling (host-side, no hardware dependency; can run in parallel with Phases 0–1)
 - Phase 3: Streaming + ECDSA + OTA write spikes → `OTAManager` implementation
 
@@ -35,7 +35,7 @@ The firmware currently compiles to ~1.75MB. Asset externalization (Phase 0) shri
 
 ## Phase 0: Asset Externalization
 
-### Spike (must pass before any Phase 0 implementation)
+### Spike (independent — can run before Phase 1)
 
 Write a 20-line test sketch that:
 1. Allocates a known font's bitmap data in PSRAM via `ps_malloc`
@@ -44,6 +44,8 @@ Write a 20-line test sketch that:
 
 **Success criterion:** Character renders correctly on hardware.
 **If this spike fails:** Phase 0's design must be revisited before proceeding. Do not continue with asset externalization until this is resolved.
+
+This spike runs against the existing `huge_app` partition layout — no partition table change is required. If the spike passes, implement `AssetLoader` and `asset_packer.py`, and generate the SPIFFS image. Full SPIFFS integration (mounting SPIFFS, testing `AssetLoader` end-to-end) cannot be validated until the Phase 1 partition table is live on hardware.
 
 ### Goal
 
@@ -100,7 +102,9 @@ spiffs,   data, spiffs, 0x290000, 0x170000   # 1.4375MB for assets
 - Each OTA partition: 1,310,720 bytes — comfortable for ~1.25MB firmware after Phase 0
 - SPIFFS: 1,474,560 bytes — fits all externalized assets (~470KB) with ~3× margin
 
-**Note:** The partition table change and Phase 0 asset externalization ship together in the same USB flash event. Both must be ready before this flash is performed.
+**Note:** The partition table change, Phase 0 SPIFFS image, and updated firmware all ship together in the same USB flash event. The new SPIFFS partition does not exist until this flash is performed; `AssetLoader` end-to-end integration testing happens after this flash.
+
+**eeprom partition:** The current `huge_app` layout includes an `eeprom` partition at `0x310000` used by the Inkplate library for waveform storage (source of the boot warning "Waveform load failed! Upload new waveform in EEPROM"). The new layout drops the named `eeprom` partition. Before flashing, confirm whether the Inkplate library resolves EEPROM via the named partition or via ESP-IDF's NVS-backed EEPROM emulation. If it requires the named partition, add it back (at the cost of some SPIFFS space); if NVS-backed emulation suffices, the drop is safe. This must be resolved before the Phase 1 USB flash.
 
 ### Build System Changes
 
@@ -121,10 +125,15 @@ No hardware dependency. Can be developed in parallel with Phases 0 and 1.
 
 ### Version Sync
 
-`VERSION` (repo root) is the single source of truth. Format: `YYYYMMDDNNN` (integer).
+`VERSION` (repo root) is the single source of truth. Format: `YYYYMMDDNNN` (integer, one line, trailing newline).
 
-- CMake reads `VERSION` and injects `FIRMWARE_VERSION` as a compile-time `#define`
-- `ota_publish.py` reads `VERSION` for the manifest `version` field
+- CMake reads `VERSION` and injects `FIRMWARE_VERSION` as a compile-time `#define`. The newline must be stripped:
+  ```cmake
+  file(READ "${CMAKE_SOURCE_DIR}/VERSION" FIRMWARE_VERSION)
+  string(STRIP "${FIRMWARE_VERSION}" FIRMWARE_VERSION)
+  target_compile_definitions(WeatherStation PRIVATE FIRMWARE_VERSION=${FIRMWARE_VERSION})
+  ```
+- `ota_publish.py` reads `VERSION` automatically from the repo root (no `--version` CLI argument). The script locates `VERSION` relative to its own path.
 - To cut a release: bump `VERSION`, build, run `ota_publish.py`
 - No manual constant to keep in sync
 
@@ -207,19 +216,36 @@ Stream a test binary to `app1` via `esp_ota_begin/write/end`, set boot partition
 ### `OTAManager::checkForUpdate()`
 
 - `GET /ota-firmware/data` via plain HTTP (same pattern as `BatteryLogger`)
-- Parse with `ArduinoJson` (512-byte `StaticJsonDocument`)
+- Parse with `ArduinoJson` (`StaticJsonDocument<1024>` — the manifest contains a 64-char sha256, ~100-char base64 signature, and URL; 512 bytes is too tight once ArduinoJson tree overhead is included)
 - Compare `version` field to compiled-in `FIRMWARE_VERSION`
 - Return `true` + populate `UpdateInfo` struct if manifest version is greater
 
 ### `OTAManager::performUpdate()`
 
-- Stream binary from `info.url` in 4KB chunks via plain HTTP
-- Simultaneously: feed each chunk to SHA-256 accumulator + `esp_ota_write()`
-- After stream completes:
-  1. Verify computed SHA-256 matches manifest `sha256` field
-  2. Verify ECDSA P-256 signature over SHA-256 digest using `mbedtls_ecdsa_verify()` with embedded public key
-- Both pass: `esp_ota_set_boot_partition()` → `esp_restart()`
-- Either fails: `esp_ota_abort()` → return `false` (running partition untouched)
+Call sequence (order is critical for safe abort):
+
+1. `esp_ota_begin(update_partition, info.size, &handle)` — obtain handle
+2. For each 4KB chunk: `esp_ota_write(handle, chunk, len)` + SHA-256 accumulator update
+3. After stream: verify computed SHA-256 against manifest `sha256` field
+4. If SHA-256 passes: verify ECDSA P-256 signature over SHA-256 digest using `mbedtls_ecdsa_verify()` with embedded public key
+5. If both checks pass: `esp_ota_end(handle)` → `esp_ota_set_boot_partition()` → `esp_restart()`
+6. If either check fails: `esp_ota_abort(handle)` → return `false` (running partition untouched)
+
+**Important:** `esp_ota_end()` is called only after both SHA-256 and ECDSA checks pass. Calling `esp_ota_abort(handle)` before `esp_ota_end()` is always safe — it discards the incomplete write. Calling abort *after* `esp_ota_end()` is undefined; this ordering prevents that.
+
+### Wake Button
+
+GPIO 36 (`WAKE_BUTTON_GPIO`) is already wired to the physical wake button. During the 30s confirmation window:
+- `pinMode(36, INPUT)` (input-only pin, hardware pull-up on Inkplate 10)
+- Poll `digitalRead(36) == LOW` in a 100ms loop
+
+**WiFi during poll:** The WiFi connection stays active during the 30s window. If the connection to the Pi drops between the manifest fetch and the binary download, `performUpdate()` returns `false` and the device falls through to normal weather display — an acceptable failure mode.
+
+### Spike 4 — Button GPIO poll (low risk)
+
+Short test: display message, poll `digitalRead(36)` for 10 seconds, print result to serial. Success: press reliably reads LOW; idle reads HIGH.
+
+Run this spike before the full integration, even though it is low risk — confirms GPIO 36 behaviour during active (non-sleep) operation is as expected.
 
 ### Integration in `Weather_Station_2.cpp`
 
@@ -234,6 +260,9 @@ if (ota.checkForUpdate(OTA_MANIFEST_URL, info)) {
     display.setFont(/* 35pt */);
     display.setCursor(50, 350);
     display.printf("Firmware v%llu available\nPress WAKE to install\n(30s to skip)", info.version);
+    // Battery shown on splash for user awareness; a second read is taken at
+    // confirmation time for the safety threshold check (intentional — the
+    // confirmation-time reading is what matters for flash safety).
     display.printf("\nBattery: %.2fV", (display.readBattery() + ADC_OFFSET));
     display.display();
 
@@ -246,30 +275,27 @@ if (ota.checkForUpdate(OTA_MANIFEST_URL, info)) {
     }
 
     if (confirmed) {
-        float volts = display.readBattery() + ADC_OFFSET;
+        float volts = display.readBattery() + ADC_OFFSET;  // second read — safety threshold
         if ((int)(volts * 1000) < info.min_battery_mv) {
-            // Show "Battery too low", fall through to normal operation
+            display.clearDisplay();
+            display.print("Battery too low for update.\nConnect charger and try again.");
+            display.display();
+            // Fall through to normal operation
         } else {
             display.clearDisplay();
             display.print("Downloading firmware...\nDo not power off.");
             display.display();
-            ota.performUpdate(info);
-            // esp_restart() called inside performUpdate on success
-            // On failure: fall through to normal weather display
+            if (!ota.performUpdate(info)) {
+                display.clearDisplay();
+                display.print("Update failed.\nContinuing normal operation.");
+                display.display();
+                delay(3000);
+            }
+            // On success: esp_restart() was called inside performUpdate — never reaches here
         }
     }
 }
 ```
-
-### Wake Button
-
-GPIO 36 (`WAKE_BUTTON_GPIO`) is already wired to the physical wake button. During the 30s confirmation window:
-- `pinMode(36, INPUT)` (input-only pin, hardware pull-up on Inkplate 10)
-- Poll `digitalRead(36) == LOW` in a 100ms loop
-
-### Spike 4 — Button GPIO poll (low risk)
-
-Short test: display message, poll `digitalRead(36)` for 10 seconds, print result to serial. Success: press reliably reads LOW; idle reads HIGH.
 
 ---
 
