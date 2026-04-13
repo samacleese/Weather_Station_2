@@ -75,7 +75,7 @@ The SPIFFS image is flashed once via USB using esptool. OTA never touches the SP
 
 ### New Module: `src/display/AssetLoader`
 
-Wraps SPIFFS open + `ps_malloc` + `GFXfont` construction. Called once per boot before rendering. Provides:
+Wraps SPIFFS open + `ps_malloc` + `GFXfont` construction. Called once per boot before rendering. Must call `SPIFFS.begin()` (or require the caller to have done so) before any file operations — failure to mount SPIFFS produces a silent null return from `SPIFFS.open()`. Provides:
 - `uint8_t* loadImage(const char* path)` — loads raw image binary into PSRAM
 - `GFXfont* loadFont(const char* bitmapPath, const char* glyphPath, ...)` — loads font data into PSRAM, constructs and returns `GFXfont` struct
 
@@ -232,7 +232,7 @@ struct UpdateInfo {
 ### `OTAManager::checkForUpdate()`
 
 - `GET /ota-firmware/data` via plain HTTP (same pattern as `BatteryLogger`)
-- Parse with `ArduinoJson` (`StaticJsonDocument<1024>` — the manifest contains a 64-char sha256, ~100-char base64 signature, and URL; 512 bytes is too tight once ArduinoJson tree overhead is included)
+- Parse with `ArduinoJson` (`StaticJsonDocument<1024>` — raw content is ~250–300 bytes; ArduinoJson tree overhead for 6 fields adds ~288 bytes, totalling ~550–600 bytes worst case; 1024 gives safe headroom)
 - Compare `version` field to compiled-in `FIRMWARE_VERSION`
 - Return `true` + populate `UpdateInfo` struct if manifest version is greater
 
@@ -257,6 +257,8 @@ GPIO 36 (`WAKE_BUTTON_GPIO`) is already wired to the physical wake button. Durin
 
 **WiFi during poll:** The WiFi connection stays active during the 30s window. If the connection to the Pi drops between the manifest fetch and the binary download, `performUpdate()` returns `false` and the device falls through to normal weather display — an acceptable failure mode.
 
+**Button debounce:** The 100ms inter-poll interval is far longer than physical button bounce (microseconds), so a single LOW reading is a reliable press detection — no explicit debounce logic needed.
+
 ### Integration in `Weather_Station_2.cpp`
 
 Insert after `network->begin()`, before weather fetch:
@@ -269,7 +271,9 @@ if (ota.checkForUpdate(OTA_MANIFEST_URL, info)) {
     display.clearDisplay();
     display.setFont(/* 35pt */);
     display.setCursor(50, 350);
-    display.printf("Firmware v%llu available\nPress WAKE to install\n(30s to skip)", info.version);
+    // %llu is broken on ESP32 Arduino (newlib-nano omits 64-bit printf).
+    // Use PRIu64 from <inttypes.h> or format the version separately.
+    display.printf("Firmware v%" PRIu64 " available\nPress WAKE to install\n(30s to skip)", info.version);
     // Battery shown on splash for user awareness; a second read is taken at
     // confirmation time for the safety threshold check (intentional — the
     // confirmation-time reading is what matters for flash safety).
@@ -348,7 +352,8 @@ if (ota.checkForUpdate(OTA_MANIFEST_URL, info)) {
 | Phase 3 spike 2 | ECDSA P-256 verify on hardware | Returns 0 for valid sig, non-zero for tampered digest |
 | Phase 3 spike 3 | OTA write test binary to `app1` | Boots from `app1` after restart |
 | Phase 3 spike 4 | GPIO 36 poll during active operation | Button press reads LOW reliably |
-| Phase 3 integration | End-to-end: publish → device detects → user confirms → flashes + restarts | Device boots updated firmware |
+| Phase 3 integration — confirm path | End-to-end: publish → device detects → user presses button → flashes + restarts | Device boots updated firmware |
+| Phase 3 integration — skip path | Device detects update → user does not press button → 30s timeout elapses | Device falls through to normal weather display |
 | Negative tests | Tampered SHA-256; tampered signature; low battery | Each rejected correctly; old partition untouched |
 
 ---
