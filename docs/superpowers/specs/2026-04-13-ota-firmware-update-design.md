@@ -26,8 +26,8 @@ The firmware currently compiles to ~1.75MB. Asset externalization (Phase 0) shri
 **Dependency:** The json-store raw binary endpoint (`PUT/GET /:app/binaries/:id`) does not yet exist. This spec assumes it exists. A feature request will be filed with the json-store team once this spec is finalized.
 
 **Phasing (phase-sequential; each phase's spike(s) gate its implementation):**
-- Phase 0: PSRAM font spike (independent) → if passes, implement `AssetLoader` and `asset_packer.py`; SPIFFS integration deferred until Phase 1 partition table is live
-- Phase 1: Partition table spike → dual-OTA + SPIFFS layout (USB flash, ships with Phase 0 SPIFFS image)
+- Phase 0: PSRAM font spike (independent) → if passes, implement `AssetLoader` and `asset_packer.py`; LittleFS integration deferred until Phase 1 partition table is live
+- Phase 1: Partition table spike → dual-OTA + LittleFS layout (USB flash, ships with Phase 0 LittleFS image)
 - Phase 2: Python signing tooling (host-side, no hardware dependency; can run in parallel with Phases 0–1)
 - Phase 3: Streaming + ECDSA + OTA write spikes → `OTAManager` implementation
 
@@ -45,18 +45,18 @@ Write a 20-line test sketch that:
 **Success criterion:** Character renders correctly on hardware.
 **If this spike fails:** Phase 0's design must be revisited before proceeding. Do not continue with asset externalization until this is resolved.
 
-This spike runs against the existing `huge_app` partition layout — no partition table change is required. If the spike passes, implement `AssetLoader` and `asset_packer.py`, and generate the SPIFFS image. Full SPIFFS integration (mounting SPIFFS, testing `AssetLoader` end-to-end) cannot be validated until the Phase 1 partition table is live on hardware.
+This spike runs against the existing `huge_app` partition layout — no partition table change is required. If the spike passes, implement `AssetLoader` and `asset_packer.py`, and generate the LittleFS image. Full LittleFS integration (mounting LittleFS, testing `AssetLoader` end-to-end) cannot be validated until the Phase 1 partition table is live on hardware.
 
 ### Goal
 
-Shrink the firmware binary from ~1.75MB to ~1.25MB by moving large fonts and cat images from PROGMEM into a SPIFFS partition, loaded at boot into PSRAM. On ESP32, `pgm_read_byte()` is a plain pointer dereference — PSRAM pointers work identically to PROGMEM pointers with Inkplate's rendering.
+Shrink the firmware binary from ~1.75MB to ~1.25MB by moving large fonts and cat images from PROGMEM into a LittleFS partition, loaded at boot into PSRAM. LittleFS is used in preference to SPIFFS — SPIFFS is deprecated in the Arduino ESP32 core (as of 2.x); LittleFS is actively maintained, power-loss resilient by design, and uses the same partition subtype (`spiffs`, 0x82) in the partition table, so no layout difference exists. On ESP32, `pgm_read_byte()` is a plain pointer dereference — PSRAM pointers work identically to PROGMEM pointers with Inkplate's rendering.
 
 ### Assets to Externalize
 
 | Asset | ~Size | Approach |
 |---|---|---|
-| 6 cat images (3-bit packed, 300×300px) | ~270KB | Raw binary SPIFFS files; load via `ps_malloc` into PSRAM |
-| Roboto_Medium 150pt | ~80KB | Binary SPIFFS file; construct `GFXfont` from PSRAM buffer |
+| 6 cat images (3-bit packed, 300×300px) | ~270KB | Raw binary LittleFS files; load via `ps_malloc` into PSRAM |
+| Roboto_Medium 150pt | ~80KB | Binary LittleFS file; construct `GFXfont` from PSRAM buffer |
 | Roboto_Light 150pt | ~80KB | Same |
 | Roboto_Light 104pt | ~40KB | Same |
 | Smaller fonts (35pt and below) | ~30KB | Keep in PROGMEM — not worth the complexity |
@@ -65,17 +65,17 @@ Shrink the firmware binary from ~1.75MB to ~1.25MB by moving large fonts and cat
 
 ### New Tooling: `tools/asset_packer.py`
 
-Converts PROGMEM C arrays in the font/image headers to flat binary files suitable for SPIFFS upload:
+Converts PROGMEM C arrays in the font/image headers to flat binary files suitable for LittleFS upload:
 
 ```bash
-python3 tools/asset_packer.py --output assets/spiffs_image/
+python3 tools/asset_packer.py --output assets/littlefs_image/
 ```
 
-The SPIFFS image is flashed once via USB using esptool. OTA never touches the SPIFFS partition — assets stay put unless SPIFFS is deliberately reflashed.
+The LittleFS image is created with `mklittlefs` and flashed once via USB using esptool. OTA never touches the LittleFS partition — assets stay put unless deliberately reflashed via USB.
 
 ### New Module: `src/display/AssetLoader`
 
-Wraps SPIFFS open + `ps_malloc` + `GFXfont` construction. Called once per boot before rendering. `AssetLoader` calls `SPIFFS.begin()` internally before any file operations — it does not require the caller to do so. Failure to mount SPIFFS produces a silent null return from `SPIFFS.open()`, so `AssetLoader` must check the return value and log/assert on failure. Provides:
+Wraps LittleFS open + `ps_malloc` + `GFXfont` construction. Called once per boot before rendering. `AssetLoader` calls `LittleFS.begin()` internally before any file operations — it does not require the caller to do so. Failure to mount LittleFS produces a silent null return from `LittleFS.open()`, so `AssetLoader` must check the return value and log/assert on failure. Provides:
 - `uint8_t* loadImage(const char* path)` — loads raw image binary into PSRAM
 - `GFXfont* loadFont(const char* bitmapPath, const char* glyphPath, ...)` — loads font data into PSRAM, constructs and returns `GFXfont` struct
 
@@ -100,11 +100,12 @@ spiffs,   data, spiffs, 0x290000, 0x170000   # 1.4375MB for assets
 ```
 
 - Each OTA partition: 1,310,720 bytes — comfortable for ~1.25MB firmware after Phase 0
-- SPIFFS: 1,474,560 bytes — fits all externalized assets (~470KB) with ~3× margin
+- LittleFS: 1,474,560 bytes — fits all externalized assets (~470KB) with ~3× margin
+- Partition subtype is `spiffs` (0x82) — this is the ESP-IDF partition subtype used by both SPIFFS and LittleFS; the filesystem choice is made at mount time, not in the partition table
 
-**Note:** The partition table change, Phase 0 SPIFFS image, and updated firmware all ship together in the same USB flash event. The new SPIFFS partition does not exist until this flash is performed; `AssetLoader` end-to-end integration testing happens after this flash.
+**Note:** The partition table change, Phase 0 LittleFS image, and updated firmware all ship together in the same USB flash event. The new partition does not exist until this flash is performed; `AssetLoader` end-to-end integration testing happens after this flash.
 
-**eeprom partition:** The current `huge_app` layout includes an `eeprom` partition at `0x310000` used by the Inkplate library for waveform storage (source of the boot warning "Waveform load failed! Upload new waveform in EEPROM"). The new layout drops the named `eeprom` partition. Before flashing, confirm whether the Inkplate library resolves EEPROM via the named partition or via ESP-IDF's NVS-backed EEPROM emulation. If it requires the named partition, add it back (at the cost of some SPIFFS space); if NVS-backed emulation suffices, the drop is safe. This must be resolved before the Phase 1 USB flash.
+**eeprom partition (must be resolved before starting Phase 1 work):** The current `huge_app` layout includes an `eeprom` partition at `0x310000` used by the Inkplate library for waveform storage (source of the boot warning "Waveform load failed! Upload new waveform in EEPROM"). The new layout drops the named `eeprom` partition. Investigate whether the Inkplate library requires the named partition or uses ESP-IDF's NVS-backed EEPROM emulation before writing any Phase 1 code. If it requires the named partition, add it back (at the cost of some LittleFS space). Do not defer this to flash time — it needs to be resolved during Phase 1 design so the partition table is correct before anyone touches a USB cable.
 
 ### Build System Changes
 
@@ -244,10 +245,22 @@ struct UpdateInfo {
 static const uint64_t COMPILED_VERSION = FIRMWARE_VERSION;
 ```
 
+### Manifest Security / Threat Model
+
+The manifest is fetched over plain HTTP on the local network. The firmware binary is protected by ECDSA P-256 signature — an attacker who tampers with the manifest cannot cause the device to flash arbitrary code because the signature check will reject any binary not signed with the private key.
+
+**Residual risks on a compromised local network:**
+- `min_battery_mv` lowered → device attempts OTA at critically low battery → potential brick during flash. This is the most meaningful risk.
+- `version` inflated → device attempts OTA on every wakeup → battery drain.
+- `url` redirected to a valid old signed binary → download + ECDSA check passes, but version check prevents a downgrade (old `version` < `FIRMWARE_VERSION`).
+
+**Decision:** Accept the local network trust model. This is a home device on a private network; the attack requires local network access. The firmware binary itself is strongly authenticated. If the threat model changes (e.g., device moved to a less trusted network), the mitigation is to sign the manifest JSON with the same ECDSA key pair and verify it on device before trusting any manifest field — this is a future enhancement, not part of this spec. HMAC is explicitly not recommended (symmetric key in firmware has the same weakness already rejected for firmware encryption).
+
 ### `OTAManager::checkForUpdate(const char* manifestUrl, UpdateInfo& info)`
 
 - `GET manifestUrl` via plain HTTP (same pattern as `BatteryLogger`)
 - Parse with `ArduinoJson` (`StaticJsonDocument<1024>` — raw content is ~250–300 bytes; ArduinoJson tree overhead for 6 fields adds ~288 bytes, totalling ~550–600 bytes worst case; 1024 gives safe headroom)
+- **Validate all required fields** before populating `info`. ArduinoJson silently returns 0 for missing integers and empty string for missing strings — a missing `url` flowing into `performUpdate()` is a bug. If any of `version`, `sha256`, `signature`, `url`, `min_battery_mv` is missing or empty, log a debug message and return `false` (treat as no update available).
 - Compare `version` field to compiled-in `FIRMWARE_VERSION`
 - Return `true` + populate `info` struct if manifest version is greater
 
@@ -265,6 +278,8 @@ Call sequence (order is critical for safe abort):
 6. If either check fails: `esp_ota_abort(handle)` → return `false` (running partition untouched)
 
 **HTTP timeout:** Set `HTTPClient::setTimeout()` to a reasonable value (e.g., 30s) before beginning the stream. On a local network the Pi is unlikely to disappear mid-stream, but without a timeout the device will hang indefinitely with WiFi active if the connection drops.
+
+**Progress display:** The download screen should show progress using `info.size`. After `esp_ota_begin()`, update the display with bytes written vs `info.size` periodically (e.g., every 64KB). This gives the user feedback during a potentially 30–60 second download and makes a mid-stream WiFi dropout distinguishable from normal operation.
 
 **Important:** `esp_ota_end()` is called only after both SHA-256 and ECDSA checks pass. Calling `esp_ota_abort(handle)` before `esp_ota_end()` is always safe — it discards the incomplete write. Calling abort *after* `esp_ota_end()` is undefined; this ordering prevents that.
 
@@ -344,11 +359,11 @@ if (ota.checkForUpdate(OTA_MANIFEST_URL, info)) {
 | `VERSION` | Single source of truth for firmware version |
 | `cmake/ota_partitions.csv` | Dual-OTA + SPIFFS partition table |
 | `src/ota/OTAManager.h/.cpp` | OTA check + update logic |
-| `src/display/AssetLoader.h/.cpp` | SPIFFS + PSRAM asset loading |
+| `src/display/AssetLoader.h/.cpp` | LittleFS + PSRAM asset loading |
 | `src/security/OTAPublicKey.h` | Embedded ECDSA P-256 public key |
 | `tools/ota_keygen.py` | One-time key pair generation + C header output |
 | `tools/ota_publish.py` | Sign firmware, write manifest, PUT to Pi json-store |
-| `tools/asset_packer.py` | Convert PROGMEM C arrays → flat binary files for SPIFFS |
+| `tools/asset_packer.py` | Convert PROGMEM C arrays → flat binary files for LittleFS |
 
 ### Modified Files
 
@@ -357,8 +372,8 @@ if (ota.checkForUpdate(OTA_MANIFEST_URL, info)) {
 | `CMakeLists.txt` | Use `ota_partitions.csv`; inject `VERSION` as `FIRMWARE_VERSION`; add new sources |
 | `cmake/BoardOptions.cmake` | Disable `HUGE_APP`, enable custom partition scheme |
 | `Weather_Station_2.cpp` | Add OTA check block; load assets via `AssetLoader`; add `#include <inttypes.h>` for `PRIu64`; define `OTA_MANIFEST_URL` |
-| `src/display/KittyPics.h/.cpp` | Remove large PROGMEM arrays (replaced by SPIFFS files) |
-| `assets/fonts/Roboto_Light.h`, `Roboto_Medium.h` | Remove large PROGMEM font sizes (replaced by SPIFFS files) |
+| `src/display/KittyPics.h/.cpp` | Remove large PROGMEM arrays (replaced by LittleFS files) |
+| `assets/fonts/Roboto_Light.h`, `Roboto_Medium.h` | Remove large PROGMEM font sizes (replaced by LittleFS files) |
 
 ---
 
@@ -367,7 +382,7 @@ if (ota.checkForUpdate(OTA_MANIFEST_URL, info)) {
 | Phase | Test | Success Criterion |
 |---|---|---|
 | Phase 0 spike | PSRAM font loading test sketch | Character renders correctly from PSRAM buffer |
-| Phase 0 integration | SPIFFS assets flashed, `AssetLoader` integrated, full weather cycle | Display renders correctly; firmware ~1.25MB |
+| Phase 0 integration | LittleFS assets flashed, `AssetLoader` integrated, full weather cycle | Display renders correctly; firmware ~1.25MB |
 | Phase 1 spike | Flash `ota_partitions.csv` via USB, boot | `update_partition->label` prints `"app1"` |
 | Phase 2 | `ota_keygen.py` + `ota_publish.py` run on host | Manifest + binary published to Pi json-store; manifest parses correctly |
 | Phase 3 spike 1 | Streaming HTTP binary download | SHA-256 matches; no OOM or timeout |
@@ -376,7 +391,7 @@ if (ota.checkForUpdate(OTA_MANIFEST_URL, info)) {
 | Phase 3 spike 4 | GPIO 36 poll during active operation | Button press reads LOW reliably |
 | Phase 3 integration — confirm path | End-to-end: publish → device detects → user presses button → flashes + restarts | Device boots updated firmware |
 | Phase 3 integration — skip path | Device detects update → user does not press button → 30s timeout elapses | Device falls through to normal weather display |
-| Negative tests | Tampered SHA-256; tampered signature; low battery | Each rejected correctly; old partition untouched |
+| Negative tests | Tampered SHA-256; tampered signature; low battery; missing manifest field | Each rejected correctly; old partition untouched |
 
 ---
 
