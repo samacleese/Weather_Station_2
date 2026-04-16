@@ -21,7 +21,7 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 #error "Wrong board selection for this example, please select Inkplate 10 in the boards menu."
 #endif
 
-#include "generated/config.h"
+#include "weather_station_2/user_settings.h"
 #include "src/security/CACerts.h"
 #include "src/network/CurrentConditions.h"
 #include "src/display/DisplayLocations.h"
