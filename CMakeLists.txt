@@ -23,6 +23,7 @@ add_executable(WeatherStation
     src/security/CACerts.cpp
 )
 
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/generated)
 configure_file(src/config.h.in ${CMAKE_BINARY_DIR}/generated/config.h)
 target_include_directories(WeatherStation PRIVATE src ${CMAKE_BINARY_DIR}/generated)
 
