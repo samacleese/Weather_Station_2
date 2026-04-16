@@ -1,0 +1,6 @@
+# ABOUTME: Example configuration file for Weather Station.
+# ABOUTME: Copy to config.cmake, fill in real values, and never commit config.cmake.
+set(WIFI_SSID "your-ssid-here")
+set(WIFI_PASSWORD "your-password-here")
+set(WEATHER_STATION_ID "XXXX")
+set(BATTERY_LOGGER_URL "http://your-server/path")
