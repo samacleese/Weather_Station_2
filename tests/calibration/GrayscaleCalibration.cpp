@@ -19,8 +19,10 @@ void loop() {
     display.clearDisplay();
     display.fillScreen(shade);
 
-    // Contrasting text so the label is always legible against any shade
-    display.setTextColor(7 - shade);
+    // Contrasting text so the label is always legible against any shade.
+    // Two-arg form required: setTextColor(fg, bg) — one-arg sets fg==bg, making
+    // text invisible.
+    display.setTextColor(7 - shade, shade);
     display.setTextSize(5);
     display.setCursor(50, 50);
     display.print("Shade: ");
@@ -28,6 +30,7 @@ void loop() {
     display.print(" / 7");
 
     display.setTextSize(2);
+    display.setTextColor(7 - shade, shade);
     display.setCursor(50, 180);
     display.print("Press button to advance");
 
