@@ -4,6 +4,11 @@
 cmake_minimum_required(VERSION 3.16)
 project(WeatherStation CXX)
 
+if(NOT EXISTS "${CMAKE_SOURCE_DIR}/config.cmake")
+    message(FATAL_ERROR "config.cmake not found. Copy config.cmake.example to config.cmake and fill in your values.")
+endif()
+include(${CMAKE_SOURCE_DIR}/config.cmake)
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # ── Firmware target ───────────────────────────────────────────────────────────
@@ -18,7 +23,8 @@ add_executable(WeatherStation
     src/security/CACerts.cpp
 )
 
-target_include_directories(WeatherStation PRIVATE src)
+configure_file(src/config.h.in ${CMAKE_BINARY_DIR}/generated/config.h)
+target_include_directories(WeatherStation PRIVATE src ${CMAKE_BINARY_DIR}/generated)
 
 # LCBUrl declares architectures=avr,esp32 but this platform identifies as arch "Inkplate".
 # Set path explicitly to bypass arduino-cmake-toolchain's architecture filter.
