@@ -7,7 +7,7 @@ project(WeatherStation CXX)
 if(NOT EXISTS "${CMAKE_SOURCE_DIR}/config.cmake")
     message(FATAL_ERROR "config.cmake not found. Copy config.cmake.example to config.cmake and fill in your values.")
 endif()
-include(${CMAKE_SOURCE_DIR}/config.cmake)
+include("${CMAKE_SOURCE_DIR}/config.cmake")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
