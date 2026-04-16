@@ -5,3 +5,4 @@ Inkplate-Arduino-library/
 .private-journal/
 .worktrees/
 config.cmake
+venv
