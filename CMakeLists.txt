@@ -25,7 +25,7 @@ add_executable(WeatherStation
 
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/generated)
 configure_file(src/config.h.in ${CMAKE_BINARY_DIR}/generated/config.h)
-target_include_directories(WeatherStation PRIVATE src ${CMAKE_BINARY_DIR}/generated)
+target_include_directories(WeatherStation PRIVATE src ${CMAKE_BINARY_DIR})
 
 # LCBUrl declares architectures=avr,esp32 but this platform identifies as arch "Inkplate".
 # Set path explicitly to bypass arduino-cmake-toolchain's architecture filter.
