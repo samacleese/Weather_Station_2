@@ -21,7 +21,7 @@ const int CURRENT_CONDITIONS_CERT_ERROR = -6;
 
 class CurrentConditions {
    public:
-    CurrentConditions(std::shared_ptr<Network> network, const String station = "KBFI");
+    CurrentConditions(std::shared_ptr<Network> network, const String station);
 
     // Returns error code, now with options for retries
     int update(int retries = 2);

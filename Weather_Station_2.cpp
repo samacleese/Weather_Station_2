@@ -21,6 +21,7 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 #error "Wrong board selection for this example, please select Inkplate 10 in the boards menu."
 #endif
 
+#include "weather_station_2/user_settings.h"
 #include "src/security/CACerts.h"
 #include "src/network/CurrentConditions.h"
 #include "src/display/DisplayLocations.h"
@@ -41,7 +42,7 @@ char buffer[256];
 
 void setup() {
     float ADC_OFFSET = -0.50;
-    auto network = std::make_shared<Network>("NorwegianFish", "rufalina");
+    auto network = std::make_shared<Network>(WIFI_SSID, WIFI_PASSWORD);
     rtc_get_reset_reason(0);
     DisplayLocation kitties(850, 50, 300, 300);
     Serial.begin(115200);
@@ -61,7 +62,7 @@ void setup() {
 
     network->begin();
 
-    CurrentConditions curr(network);
+    CurrentConditions curr(network, WEATHER_STATION_ID);
 
     const uint8_t* nextKitty = Kitties::getNextKitty();
 
@@ -218,7 +219,7 @@ void setup() {
     // Log battery reading for discharge curve calibration
     time_t now;
     time(&now);
-    BatteryLogger batteryLogger("http://192.168.1.2:5000/weather-station/documents/battery-log");
+    BatteryLogger batteryLogger(BATTERY_LOGGER_URL);
     batteryLogger.log(now, rawBattery, voltage);
 
     // Goto deep sleep

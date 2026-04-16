@@ -1,0 +1,9 @@
+// ABOUTME: CMake-generated header providing compile-time configuration values.
+// ABOUTME: Values are substituted by CMake at configure time from config.cmake.
+#ifndef WEATHER_STATION_2_USER_SETTINGS_H
+#define WEATHER_STATION_2_USER_SETTINGS_H
+#define WIFI_SSID "@WIFI_SSID@"
+#define WIFI_PASSWORD "@WIFI_PASSWORD@"
+#define WEATHER_STATION_ID "@WEATHER_STATION_ID@"
+#define BATTERY_LOGGER_URL "@BATTERY_LOGGER_URL@"
+#endif  // WEATHER_STATION_2_USER_SETTINGS_H
