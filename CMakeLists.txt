@@ -55,3 +55,6 @@ file(RENAME
     "${CMAKE_BINARY_DIR}/huge_app.csv"
     "${CMAKE_BINARY_DIR}/partitions.csv"
 )
+
+# ── Test sketches ─────────────────────────────────────────────────────────────
+add_subdirectory(tests)
