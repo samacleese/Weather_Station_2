@@ -10,6 +10,8 @@ Weather Station 2 is an Arduino/ESP32 project for the Inkplate 10 E-paper displa
 
 The device appears on `/dev/ttyUSB0`. The user must be in the `dialout` group (already configured). `arduino-cli board list` will show the port as "Unknown" — that's normal, the Inkplate FQBN can't be auto-detected.
 
+A `Containerfile` at the repo root provides a fully pinned build environment (see `docs/README.md`).
+
 ```bash
 # Configure (run from repo root, once or when CMakeLists.txt changes)
 cmake \
@@ -57,7 +59,7 @@ All application logic lives in `setup()` in `Weather_Station_2.cpp`. `loop()` is
 - `Weather_Station_2.cpp` includes a `std::make_unique` polyfill (lines 12–18) because the ESP32 Arduino core doesn't provide it.
 - `Kitties` uses `RTC_DATA_ATTR` to persist the image rotation counter across deep sleep cycles without hitting flash.
 - `CACerts` is a static `std::map<String, const char*>` mapping hostnames to PEM certs embedded as PROGMEM strings. Used by `Network` to configure `WiFiClientSecure` before each HTTPS request.
-- WiFi credentials are hardcoded in `Weather_Station_2.cpp` — there is no config file.
+- WiFi credentials and station ID are in `config.cmake` (gitignored; copy from `config.cmake.example`).
 - Weather station is hardcoded as `KBFI` (Seattle/Boeing Field) in `CurrentConditions.cpp`.
 
 ## Certificate Updates
