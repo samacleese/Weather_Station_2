@@ -70,6 +70,8 @@ Weather_Station_2/
 
 ## Development Commands
 
+A `Containerfile` at the repo root provides a fully pinned build environment (see `docs/README.md`).
+
 - **Configure**: `cmake -DCMAKE_TOOLCHAIN_FILE=cmake/Arduino-CMake-Toolchain/Arduino-toolchain.cmake -DARDUINO_BOARD_OPTIONS_FILE=cmake/BoardOptions.cmake -B build -G Ninja`
 - **Compile**: `cmake --build build`
 - **Flash**: `SERIAL_PORT=/dev/ttyUSB0 cmake --build build --target upload-WeatherStation`
@@ -82,10 +84,7 @@ Weather_Station_2/
 
 ## Network Configuration
 
-WiFi credentials are hardcoded in Weather_Station_2.cpp setup() function:
-```cpp
-auto network = std::make_shared<Network>("SSID", "PASSWORD");
-```
+WiFi credentials and station ID are in `config.cmake` (gitignored; copy from `config.cmake.example`).
 
 ## Error Handling Strategy
 

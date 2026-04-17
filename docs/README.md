@@ -29,6 +29,56 @@ This project turns your Inkplate 10 into a weather station that displays:
 4. Open the project in Arduino IDE
 5. Upload the code to your Inkplate 10 device
 
+## Container build
+
+A `Containerfile` at the repo root pins all toolchain dependencies for a reproducible build without requiring a local Arduino IDE installation.
+
+### Build the image
+
+```bash
+podman build -t weather-station-builder .
+# or: docker build -t weather-station-builder .
+```
+
+### Compile firmware
+
+Copy `config.cmake.example` to `config.cmake` and fill in your WiFi credentials and station ID first.
+
+```bash
+# Podman (Linux with SELinux — the :Z flag relabels the volume for container access)
+podman run --rm -v $(pwd):/project:Z -w /project weather-station-builder \
+    bash -c "cmake \
+        -DCMAKE_TOOLCHAIN_FILE=cmake/Arduino-CMake-Toolchain/Arduino-toolchain.cmake \
+        -DARDUINO_BOARD_OPTIONS_FILE=cmake/BoardOptions.cmake \
+        -B build -G Ninja \
+    && cmake --build build"
+
+# Docker (or Podman without SELinux)
+docker run --rm -v $(pwd):/project -w /project weather-station-builder \
+    bash -c "cmake \
+        -DCMAKE_TOOLCHAIN_FILE=cmake/Arduino-CMake-Toolchain/Arduino-toolchain.cmake \
+        -DARDUINO_BOARD_OPTIONS_FILE=cmake/BoardOptions.cmake \
+        -B build -G Ninja \
+    && cmake --build build"
+```
+
+### Flash firmware
+
+The device appears on `/dev/ttyUSB0`. Your account must be in the `dialout` group on the host.
+
+```bash
+# Podman — --group-add keep-groups passes your host supplementary groups (including
+# dialout) into the container, required for rootless Podman to access the serial port.
+podman run --rm -v $(pwd):/project:Z --device /dev/ttyUSB0 --group-add keep-groups \
+    -w /project weather-station-builder \
+    bash -c "SERIAL_PORT=/dev/ttyUSB0 cmake --build build --target upload-WeatherStation"
+
+# Docker
+docker run --rm -v $(pwd):/project --device /dev/ttyUSB0 -w /project \
+    weather-station-builder \
+    bash -c "SERIAL_PORT=/dev/ttyUSB0 cmake --build build --target upload-WeatherStation"
+```
+
 ## Features
 
 - Real-time weather data from weather.gov
