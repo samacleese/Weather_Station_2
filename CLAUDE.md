@@ -12,6 +12,11 @@ The device appears on `/dev/ttyUSB0`. The user must be in the `dialout` group (a
 
 A `Containerfile` at the repo root provides a fully pinned build environment (see `docs/README.md`).
 
+`config.cmake` is gitignored (it holds WiFi credentials). When setting up a new git worktree, copy it manually:
+```bash
+cp config.cmake .worktrees/<branch-name>/config.cmake
+```
+
 ```bash
 # Configure (run from repo root, once or when CMakeLists.txt changes)
 cmake \
