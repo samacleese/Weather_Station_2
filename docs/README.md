@@ -67,9 +67,10 @@ docker run --rm -v $(pwd):/project -w /project weather-station-builder \
 The device appears on `/dev/ttyUSB0`. Your account must be in the `dialout` group on the host.
 
 ```bash
-# Podman
-podman run --rm -v $(pwd):/project:Z --device /dev/ttyUSB0 -w /project \
-    weather-station-builder \
+# Podman — --group-add keep-groups passes your host supplementary groups (including
+# dialout) into the container, required for rootless Podman to access the serial port.
+podman run --rm -v $(pwd):/project:Z --device /dev/ttyUSB0 --group-add keep-groups \
+    -w /project weather-station-builder \
     bash -c "SERIAL_PORT=/dev/ttyUSB0 cmake --build build --target upload-WeatherStation"
 
 # Docker
