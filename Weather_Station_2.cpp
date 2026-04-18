@@ -22,7 +22,9 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 #endif
 
 #include "weather_station_2/user_settings.h"
-#include "src/security/CACerts.h"
+#include "src/network/IClock.h"
+#include "src/network/IHttpClient.h"
+#include "src/network/SystemClock.h"
 #include "src/network/CurrentConditions.h"
 #include "src/display/DisplayLocations.h"
 #include "assets/fonts/Roboto_Light.h"
@@ -62,7 +64,8 @@ void setup() {
 
     network->begin();
 
-    CurrentConditions curr(network, WEATHER_STATION_ID);
+    SystemClock clock;
+    CurrentConditions curr(*network, clock, WEATHER_STATION_ID);
 
     const uint8_t* nextKitty = Kitties::getNextKitty();
 

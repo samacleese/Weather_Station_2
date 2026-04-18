@@ -6,6 +6,8 @@
 #include <HTTPClient.h>
 #include <WiFi.h>
 
+#include "../security/CACerts.h"
+
 Network::Network(const char* ssid, const char* password) {
     strncpy(m_ssid, ssid, sizeof(m_ssid));
     m_ssid[sizeof(m_ssid) - 1] = '\0';
@@ -172,6 +174,30 @@ bool Network::isCertError(WiFiClientSecure& client) {
         return true;
     }
     return false;
+}
+
+int Network::get(const std::string& url, std::string& body) {
+    WiFiClientSecure client;
+    StreamString stream;
+
+    // Extract hostname from URL: "https://host/path" → "host"
+    std::string hostname;
+    size_t scheme_end = url.find("://");
+    if (scheme_end != std::string::npos) {
+        size_t host_start = scheme_end + 3;
+        size_t host_end = url.find('/', host_start);
+        hostname = url.substr(host_start, host_end - host_start);
+    }
+
+    client.setCACert(CACerts::getCert(hostname));
+
+    String arduino_url(url.c_str());
+    int result = get(client, arduino_url, stream, 2, 10000);
+
+    if (result == NETWORK_OK) {
+        body = stream.c_str();
+    }
+    return result;
 }
 
 const char* Network::getErrorString(int errorCode) {

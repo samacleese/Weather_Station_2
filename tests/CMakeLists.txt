@@ -3,3 +3,4 @@
 # ABOUTME: Each subdirectory defines an independent, flashable test target.
 
 add_subdirectory(calibration)
+add_subdirectory(device)

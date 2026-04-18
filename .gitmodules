@@ -1,3 +1,9 @@
 [submodule "cmake/Arduino-CMake-Toolchain"]
 	path = cmake/Arduino-CMake-Toolchain
 	url = https://github.com/a9183756-gh/Arduino-CMake-Toolchain.git
+[submodule "libs/googletest"]
+	path = libs/googletest
+	url = https://github.com/google/googletest
+[submodule "libs/AUnit"]
+	path = libs/AUnit
+	url = https://github.com/bxparks/AUnit

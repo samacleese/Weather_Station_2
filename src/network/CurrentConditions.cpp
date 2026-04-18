@@ -2,24 +2,29 @@
 // ABOUTME: Parses observation JSON and exposes temperature, wind, dew point, and description.
 #include "CurrentConditions.h"
 
-#include <ArduinoLog.h>
-#include <WiFiClientSecure.h>
-
 #include <cstdio>
 
-#include "../security/CACerts.h"
+#ifdef ARDUINO
+#include <ArduinoLog.h>
+#define CC_LOG_ERROR(fmt, ...) Log.errorln(fmt, ##__VA_ARGS__)
+#define CC_LOG_WARNING(fmt, ...) Log.warningln(fmt, ##__VA_ARGS__)
+#define CC_LOG_NOTICE(fmt, ...) Log.noticeln(fmt, ##__VA_ARGS__)
+#define CC_LOG_INFO(fmt, ...) Log.infoln(fmt, ##__VA_ARGS__)
+#else
+#define CC_LOG_ERROR(fmt, ...)
+#define CC_LOG_WARNING(fmt, ...)
+#define CC_LOG_NOTICE(fmt, ...)
+#define CC_LOG_INFO(fmt, ...)
+#endif
 
 static const char* url_format = "https://api.weather.gov/stations/%s/observations/latest";
 static unsigned int json_size = 768;
 
-CurrentConditions::CurrentConditions(std::shared_ptr<Network> network, const String station)
-    : m_network(network), m_station(station), m_doc(json_size) {
+CurrentConditions::CurrentConditions(IHttpClient& http, IClock& clock, const std::string& station)
+    : m_http(http), m_clock(clock), m_doc(json_size) {
     char buffer[256];
-    sprintf(buffer, url_format, m_station.c_str());
-    if (!m_url.setUrl(buffer)) {
-        Log.error(F("Failure to set URL: %s" CR), buffer);
-        lastError = CURRENT_CONDITIONS_ERROR;
-    }
+    snprintf(buffer, sizeof(buffer), url_format, station.c_str());
+    m_url = buffer;
 
     JsonObject filter_properties = m_filter.createNestedObject("properties");
     filter_properties["textDescription"] = true;
@@ -28,71 +33,59 @@ CurrentConditions::CurrentConditions(std::shared_ptr<Network> network, const Str
     filter_properties["dewpoint"] = true;
     filter_properties["temperature"] = true;
 
-    Log.notice(F("Set Current Conditions URL to %s" CR), m_url.getUrl().c_str());
+    CC_LOG_NOTICE("Set Current Conditions URL to %s", m_url.c_str());
 }
 
 int CurrentConditions::update(int retries) {
-    WiFiClientSecure client;
-    StreamString stream;
-
-    // Reset last error
     lastError = CURRENT_CONDITIONS_OK;
+    std::string body;
 
-    client.setCACert(CACerts::getCert(m_url.getHost()));
+    CC_LOG_NOTICE("Getting Current Conditions");
 
-    Log.notice(F("Getting Current Conditions" CR));
+    int networkResult = m_http.get(m_url, body);
 
-    // Get data with retries
-    int networkResult = m_network->get(client, m_url.getUrl(), stream, retries);
+    if (networkResult != 0) {
+        CC_LOG_ERROR("Network error code: %d", networkResult);
 
-    if (networkResult != NETWORK_OK) {
-        Log.error(F("Network error: %s" CR), m_network->getErrorString(networkResult));
-
-        // Map network errors to our error codes
+        // Map NetworkError enum values (defined in Network.h) by their integer
+        // values. CurrentConditions no longer includes Network.h to keep host
+        // compilation clean. These values must stay in sync with NetworkError.
         switch (networkResult) {
-            case NETWORK_WIFI_ERROR:
-            case NETWORK_HTTP_ERROR:
-            case NETWORK_TIMEOUT_ERROR:
-            case NETWORK_NO_DATA:
+            case -1: case -2: case -3: case -4:
                 lastError = CURRENT_CONDITIONS_NETWORK_ERROR;
                 break;
-            case NETWORK_CERT_ERROR:
+            case -5:
                 lastError = CURRENT_CONDITIONS_CERT_ERROR;
                 break;
             default:
                 lastError = CURRENT_CONDITIONS_ERROR;
         }
 
-        // If we have previous valid data that's not too old (30 minutes), use it
-        if (m_last_valid.valid && (millis() - m_last_update_time < 1800000)) {
-            Log.warning(F("Using cached weather data from previous update" CR));
+        if (m_last_valid.valid && (m_clock.millis() - m_last_update_time < 1800000)) {
+            CC_LOG_WARNING("Using cached weather data from previous update");
             description = m_last_valid.description.c_str();
             raw_message = m_last_valid.raw_message.c_str();
             temperature = m_last_valid.temperature;
             dew_point = m_last_valid.dew_point;
             wind_speed = m_last_valid.wind_speed;
-            return lastError;  // Return error but we've set fallback data
+            return lastError;
         }
 
         return lastError;
     }
 
-    // Check if we got any data
-    if (stream.length() == 0) {
-        Log.error(F("Empty response from server" CR));
+    if (body.empty()) {
+        CC_LOG_ERROR("Empty response from server");
         lastError = CURRENT_CONDITIONS_NETWORK_ERROR;
         return lastError;
     }
 
-    // Parse the JSON data
-    int parseResult = this->parse(stream);
+    int parseResult = this->parse(body);
 
-    // Validate the data
     if (parseResult == CURRENT_CONDITIONS_OK && !validateData()) {
         parseResult = CURRENT_CONDITIONS_INVALID_DATA;
     }
 
-    // If parsing succeeded, cache the valid data
     if (parseResult == CURRENT_CONDITIONS_OK) {
         m_last_valid.description = description;
         m_last_valid.raw_message = raw_message;
@@ -100,7 +93,7 @@ int CurrentConditions::update(int retries) {
         m_last_valid.dew_point = dew_point;
         m_last_valid.wind_speed = wind_speed;
         m_last_valid.valid = true;
-        m_last_update_time = millis();
+        m_last_update_time = m_clock.millis();
     }
 
     lastError = parseResult;
@@ -108,114 +101,87 @@ int CurrentConditions::update(int retries) {
 }
 
 bool CurrentConditions::validateData() {
-    // Check for valid temperature range (-100 to +100 should cover all realistic weather)
     if (temperature < -100 || temperature > 100) {
-        Log.error(F("Invalid temperature value: %d" CR), temperature);
+        CC_LOG_ERROR("Invalid temperature value: %d", temperature);
         return false;
     }
-
-    // Check for valid dew point (should normally be lower than or equal to temperature)
     if (dew_point < -100 || dew_point > 100 || dew_point > temperature + 5) {
-        Log.error(F("Invalid dew point value: %d" CR), dew_point);
+        CC_LOG_ERROR("Invalid dew point value: %d", dew_point);
         return false;
     }
-
-    // Check for valid wind speed (0 to 500 km/h should cover all cases, even hurricanes)
     if (wind_speed < 0 || wind_speed > 500) {
-        Log.error(F("Invalid wind speed value: %d" CR), wind_speed);
+        CC_LOG_ERROR("Invalid wind speed value: %d", wind_speed);
         return false;
     }
-
     return true;
 }
 
-int CurrentConditions::parse(Stream& input) {
-    // Clear the document to prevent issues with previous data
+int CurrentConditions::parse(const std::string& input) {
     m_doc.clear();
 
-    // Parse code generated with https://arduinojson.org/v6/assistant/
-    DeserializationError error = deserializeJson(m_doc, input, DeserializationOption::Filter(m_filter));
+    DeserializationError error = deserializeJson(
+        m_doc, input.c_str(), input.size(), DeserializationOption::Filter(m_filter));
 
     if (error) {
-        Log.error(F("deserializeJson() failed: %s" CR), error.f_str());
+        CC_LOG_ERROR("deserializeJson() failed: %s", error.c_str());
         return CURRENT_CONDITIONS_JSON_ERROR;
     }
 
-    // Check if the JSON structure is as expected
     JsonObject properties = m_doc["properties"];
     if (properties.isNull()) {
-        Log.error(F("Missing properties object in JSON response" CR));
+        CC_LOG_ERROR("Missing properties object in JSON response");
         return CURRENT_CONDITIONS_DATA_MISSING;
     }
 
-    // Extract data, now with null checks
     const char* prop_rawMessage = properties["rawMessage"] | "No data";
     const char* prop_textDescription = properties["textDescription"] | "Unknown";
-
     raw_message = prop_rawMessage;
     description = prop_textDescription;
 
-    // Check for temperature data
     JsonObject prop_temperature = properties["temperature"];
     if (!prop_temperature.isNull() && !prop_temperature["value"].isNull()) {
         temperature = prop_temperature["value"];
     } else {
-        Log.warning(F("No valid temperature received" CR));
-        temperature = -999;  // Error value
+        CC_LOG_WARNING("No valid temperature received");
+        temperature = -999;
     }
 
-    // Check for dewpoint data
     JsonObject prop_dewpoint = properties["dewpoint"];
     if (!prop_dewpoint.isNull() && !prop_dewpoint["value"].isNull()) {
         dew_point = prop_dewpoint["value"];
     } else {
-        Log.warning(F("No valid dewpoint received" CR));
-        dew_point = -999;  // Error value
+        CC_LOG_WARNING("No valid dewpoint received");
+        dew_point = -999;
     }
 
-    // Check for wind speed data
     JsonObject prop_windSpeed = properties["windSpeed"];
     if (!prop_windSpeed.isNull() && !prop_windSpeed["value"].isNull()) {
         wind_speed = prop_windSpeed["value"];
     } else {
-        Log.warning(F("No valid wind speed received" CR));
-        wind_speed = -999;  // Error value
+        CC_LOG_WARNING("No valid wind speed received");
+        wind_speed = -999;
     }
 
-    // Check if we got at least some valid data
     if (temperature == -999 && dew_point == -999 && wind_speed == -999) {
-        Log.error(F("No valid weather data received" CR));
+        CC_LOG_ERROR("No valid weather data received");
         return CURRENT_CONDITIONS_DATA_MISSING;
     }
 
-    String output;
-    serializeJson(properties, output);
-    output.concat(CR);
-    Log.info(output.c_str());
-    Log.info(F("Raw Message %s" CR), raw_message);
-    Log.info(
-        F("%s - Temp: %d C, Dew Point: %d C, Wind Speed: %d km/h" CR), description, temperature, dew_point, wind_speed);
+    CC_LOG_INFO("%s - Temp: %d C, Dew Point: %d C, Wind Speed: %d km/h",
+                description, temperature, dew_point, wind_speed);
 
     return CURRENT_CONDITIONS_OK;
 }
 
 const char* CurrentConditions::getErrorString(int errorCode) {
     switch (errorCode) {
-        case CURRENT_CONDITIONS_OK:
-            return "No error";
-        case CURRENT_CONDITIONS_ERROR:
-            return "General error";
-        case CURRENT_CONDITIONS_JSON_ERROR:
-            return "JSON parsing error";
-        case CURRENT_CONDITIONS_NETWORK_ERROR:
-            return "Network connection error";
-        case CURRENT_CONDITIONS_DATA_MISSING:
-            return "Required data missing";
-        case CURRENT_CONDITIONS_INVALID_DATA:
-            return "Invalid data values";
-        case CURRENT_CONDITIONS_CERT_ERROR:
-            return "SSL certificate validation failed - check CA cert or run cert update";
-        default:
-            return "Unknown error";
+        case CURRENT_CONDITIONS_OK:            return "No error";
+        case CURRENT_CONDITIONS_ERROR:         return "General error";
+        case CURRENT_CONDITIONS_JSON_ERROR:    return "JSON parsing error";
+        case CURRENT_CONDITIONS_NETWORK_ERROR: return "Network connection error";
+        case CURRENT_CONDITIONS_DATA_MISSING:  return "Required data missing";
+        case CURRENT_CONDITIONS_INVALID_DATA:  return "Invalid data values";
+        case CURRENT_CONDITIONS_CERT_ERROR:    return "SSL certificate validation failed - check CA cert or run cert update";
+        default:                               return "Unknown error";
     }
 }

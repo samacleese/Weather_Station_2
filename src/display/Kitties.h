@@ -3,6 +3,10 @@
 
 #include <stdint.h>
 
+#ifndef RTC_DATA_ATTR
+#define RTC_DATA_ATTR
+#endif
+
 #define NUM_OF_KITTIES 5
 
 class Kitties {

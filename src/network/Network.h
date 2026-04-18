@@ -9,6 +9,9 @@
 #include <WiFiClientSecure.h>
 
 #include <memory>
+#include <string>
+
+#include "IHttpClient.h"
 
 enum NetworkError {
     NETWORK_OK = 0,
@@ -19,7 +22,7 @@ enum NetworkError {
     NETWORK_CERT_ERROR = -5,
 };
 
-class Network {
+class Network : public IHttpClient {
    public:
     Network(const char* ssid, const char* password);
     void begin();
@@ -27,6 +30,9 @@ class Network {
 
     // Fetches URL content into stream; retries on transient failures.
     int get(WiFiClientSecure& client, const String& url, StreamString& stream, int retries = 2, int timeout = 10000);
+
+    // IHttpClient override: HTTPS GET with cert lookup, retries, and timeout.
+    int get(const std::string& url, std::string& body) override;
 
     // Get the text representation of an error code
     const char* getErrorString(int errorCode);

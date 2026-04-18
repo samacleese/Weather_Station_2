@@ -1,10 +1,11 @@
 
 #include "CACerts.h"
 
-#include <Arduino.h>  // for PROGMEM
-#include <WString.h>
+#ifndef PROGMEM
+#define PROGMEM
+#endif
 
-const char *CACerts::getCert(const String &host) {
+const char* CACerts::getCert(const std::string& host) {
     auto search = ca_certs.find(host);
     if (search != ca_certs.end()) {
         return search->second;
@@ -435,7 +436,7 @@ const char PROGMEM r13_[] =
 
 }  // namespace
 
-const std::map<String, const char *> CACerts::ca_certs{
+const std::map<std::string, const char*> CACerts::ca_certs{
     {"api.weather.gov", r12_},
     {"example.com", digicert_global_g3_tls_ecc_sha384_2020_ca1_},
 };

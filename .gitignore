@@ -6,3 +6,4 @@ Inkplate-Arduino-library/
 .worktrees/
 config.cmake
 venv
+build-host/

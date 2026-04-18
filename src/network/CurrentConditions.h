@@ -2,15 +2,13 @@
 // ABOUTME: Parses observation JSON and exposes temperature, wind, dew point, and description.
 #ifndef CURRENT_CONDITIONS_H
 #define CURRENT_CONDITIONS_H
+
 #include <ArduinoJson.h>
-#include <LCBUrl.h>
-#include <WString.h>
+#include <string>
 
-#include <memory>
+#include "IClock.h"
+#include "IHttpClient.h"
 
-#include "Network.h"
-
-// Extended error codes
 const int CURRENT_CONDITIONS_OK = 0;
 const int CURRENT_CONDITIONS_ERROR = -1;
 const int CURRENT_CONDITIONS_JSON_ERROR = -2;
@@ -21,45 +19,38 @@ const int CURRENT_CONDITIONS_CERT_ERROR = -6;
 
 class CurrentConditions {
    public:
-    CurrentConditions(std::shared_ptr<Network> network, const String station);
+    CurrentConditions(IHttpClient& http, IClock& clock, const std::string& station);
 
-    // Returns error code, now with options for retries
     int update(int retries = 2);
-
-    // Get the text representation of an error code
     const char* getErrorString(int errorCode);
+    bool validateData();
 
-    // Default values in case of errors
     const char* description = "Unknown";
     const char* raw_message = "No data";
-    int temperature = -999;  // Use impossible values to indicate error state
+    int temperature = -999;
     int dew_point = -999;
     int wind_speed = -999;
-
-    // Last error code
     int lastError = CURRENT_CONDITIONS_OK;
 
    private:
-    int parse(Stream& input);
-    bool validateData();  // New method to validate data
-    JsonObject m_properties;
-    std::shared_ptr<Network> m_network;
-    String m_station;
-    LCBUrl m_url;
-    DynamicJsonDocument m_doc;
-    StaticJsonDocument<96> m_filter;
+    int parse(const std::string& input);
 
-    // Store previous valid data as fallback
+    IHttpClient& m_http;
+    IClock& m_clock;
+    std::string m_url;
+    DynamicJsonDocument m_doc;
+    StaticJsonDocument<200> m_filter;
+
     struct {
-        String description;
-        String raw_message;
-        int temperature;
-        int dew_point;
-        int wind_speed;
+        std::string description;
+        std::string raw_message;
+        int temperature = -999;
+        int dew_point = -999;
+        int wind_speed = -999;
         bool valid = false;
     } m_last_valid;
 
-    // Time of last successful update
     unsigned long m_last_update_time = 0;
 };
+
 #endif  // CURRENT_CONDITIONS_H
