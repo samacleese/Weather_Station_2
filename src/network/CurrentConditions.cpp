@@ -38,7 +38,7 @@ int CurrentConditions::update(int retries) {
     // Reset last error
     lastError = CURRENT_CONDITIONS_OK;
 
-    client.setCACert(CACerts::getCert(m_url.getHost()));
+    client.setCACert(CACerts::getCert(m_url.getHost().c_str()));
 
     Log.notice(F("Getting Current Conditions" CR));
 

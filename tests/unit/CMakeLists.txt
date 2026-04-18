@@ -15,7 +15,8 @@ add_subdirectory(
 )
 
 add_executable(unit_tests
-    placeholder.cpp
+    CACertsTest.cpp
+    ../../src/security/CACerts.cpp
 )
 
 target_include_directories(unit_tests PRIVATE
