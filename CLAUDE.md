@@ -6,6 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Weather Station 2 is an Arduino/ESP32 project for the Inkplate 10 E-paper display. It fetches weather data from weather.gov and displays it alongside rotating cat images. The device wakes every 10 minutes via deep sleep to conserve battery.
 
+## Hardware & Platform
+
+- **Target Hardware**: Inkplate 10 E-paper Display (ESP32-based)
+- **Required Libraries**: Inkplate, ArduinoLog, ArduinoJson, standard ESP32 libraries
+
 ## Build, Flash & Serial
 
 The device appears on `/dev/ttyUSB0`. The user must be in the `dialout` group (already configured). `arduino-cli board list` will show the port as "Unknown" — that's normal, the Inkplate FQBN can't be auto-detected.
@@ -56,6 +61,32 @@ I: [HTTPS] GET... code: 200
 ```
 
 The `Wavefrom load failed! Upload new waveform in EEPROM.` warning on boot is a pre-existing Inkplate e-paper waveform message — not an error.
+
+## Project Structure
+
+```
+Weather_Station_2/
+├── Weather_Station_2.cpp          # Main firmware entry point
+├── src/                           # Core application code
+│   ├── network/                   # Network and API components
+│   │   ├── Network.h/.cpp         # WiFi management
+│   │   └── CurrentConditions.h/.cpp # Weather.gov API client
+│   ├── display/                   # Display and UI components
+│   │   ├── DisplayLocations.h/.cpp # Text layout and positioning
+│   │   ├── Kitties.h/.cpp         # Cat image rotation logic
+│   │   └── KittyPics.h/.cpp       # Cat image bitmap data
+│   └── security/                  # SSL and certificate management
+│       └── CACerts.h/.cpp         # Certificate store
+├── assets/                        # Non-code resources
+│   ├── fonts/                     # Roboto font family headers
+│   ├── images/                    # Source PNG images
+│   └── certificates/              # SSL certificate files
+├── tools/                         # Development utilities
+│   ├── image_converter.py         # PNG to bitmap converter
+│   └── cert_collector.py          # SSL certificate updater
+└── docs/                          # Documentation
+    └── README.md
+```
 
 ## Architecture
 
