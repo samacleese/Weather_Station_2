@@ -29,6 +29,8 @@ class CurrentConditions {
     // Get the text representation of an error code
     const char* getErrorString(int errorCode);
 
+    bool validateData();
+
     // Default values in case of errors
     const char* description = "Unknown";
     const char* raw_message = "No data";
@@ -41,7 +43,6 @@ class CurrentConditions {
 
    private:
     int parse(Stream& input);
-    bool validateData();  // New method to validate data
     JsonObject m_properties;
     std::shared_ptr<Network> m_network;
     String m_station;
