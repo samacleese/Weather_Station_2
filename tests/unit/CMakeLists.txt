@@ -14,16 +14,26 @@ add_subdirectory(
     EXCLUDE_FROM_ALL
 )
 
+include(FetchContent)
+FetchContent_Declare(
+  ArduinoJson
+  GIT_REPOSITORY https://github.com/bblanchon/ArduinoJson.git
+  GIT_TAG        v6.21.5
+)
+FetchContent_MakeAvailable(ArduinoJson)
+
 add_executable(unit_tests
     CACertsTest.cpp
+    CurrentConditionsTest.cpp
     ../../src/security/CACerts.cpp
+    ../../src/network/CurrentConditions.cpp
 )
 
 target_include_directories(unit_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../src
 )
 
-target_link_libraries(unit_tests PRIVATE gtest_main)
+target_link_libraries(unit_tests PRIVATE gtest_main ArduinoJson)
 
 include(GoogleTest)
 gtest_discover_tests(unit_tests)

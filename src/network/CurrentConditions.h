@@ -39,7 +39,7 @@ class CurrentConditions {
     IClock& m_clock;
     std::string m_url;
     DynamicJsonDocument m_doc;
-    StaticJsonDocument<96> m_filter;
+    StaticJsonDocument<200> m_filter;
 
     struct {
         std::string description;
