@@ -7,9 +7,26 @@
 
 #include "display/Kitties.h"
 #include "network/CurrentConditions.h"
+#include "network/IClock.h"
+#include "network/IHttpClient.h"
 
 // Constraint: use only ASSERT_* macros (not EXPECT_*); TEST_F() is not
 // supported by the AUnit gtest adapter.
+
+// ── Test doubles ─────────────────────────────────────────────────────────────
+
+class StubHttpClient : public IHttpClient {
+   public:
+    int get(const std::string& url, std::string& body) override { return -2; }
+};
+
+class StubClock : public IClock {
+   public:
+    unsigned long millis() const override { return 0; }
+};
+
+static StubHttpClient stubHttp;
+static StubClock stubClock;
 
 // ── Kitties tests ────────────────────────────────────────────────────────────
 // m_count is RTC_DATA_ATTR — resets to 0 on power cycle, persists across deep
@@ -39,7 +56,7 @@ TEST(KittiesTest, Uint8OverflowDoesNotBreakCycling) {
 // pointer without dereferencing it (dereference only occurs in update()).
 
 TEST(ValidateDataTest, ValidDataPasses) {
-    CurrentConditions cc(nullptr, "KBFI");
+    CurrentConditions cc(stubHttp, stubClock, "KBFI");
     cc.temperature = 20;
     cc.dew_point = 15;
     cc.wind_speed = 10;
@@ -47,7 +64,7 @@ TEST(ValidateDataTest, ValidDataPasses) {
 }
 
 TEST(ValidateDataTest, TemperatureTooHighFails) {
-    CurrentConditions cc(nullptr, "KBFI");
+    CurrentConditions cc(stubHttp, stubClock, "KBFI");
     cc.temperature = 101;
     cc.dew_point = 15;
     cc.wind_speed = 10;
@@ -55,7 +72,7 @@ TEST(ValidateDataTest, TemperatureTooHighFails) {
 }
 
 TEST(ValidateDataTest, TemperatureTooLowFails) {
-    CurrentConditions cc(nullptr, "KBFI");
+    CurrentConditions cc(stubHttp, stubClock, "KBFI");
     cc.temperature = -101;
     cc.dew_point = -90;
     cc.wind_speed = 10;
@@ -63,7 +80,7 @@ TEST(ValidateDataTest, TemperatureTooLowFails) {
 }
 
 TEST(ValidateDataTest, DewPointTooHighFails) {
-    CurrentConditions cc(nullptr, "KBFI");
+    CurrentConditions cc(stubHttp, stubClock, "KBFI");
     cc.temperature = 20;
     cc.dew_point = 26;  // more than temperature + 5
     cc.wind_speed = 10;
@@ -71,7 +88,7 @@ TEST(ValidateDataTest, DewPointTooHighFails) {
 }
 
 TEST(ValidateDataTest, NegativeWindSpeedFails) {
-    CurrentConditions cc(nullptr, "KBFI");
+    CurrentConditions cc(stubHttp, stubClock, "KBFI");
     cc.temperature = 20;
     cc.dew_point = 15;
     cc.wind_speed = -1;
@@ -79,7 +96,7 @@ TEST(ValidateDataTest, NegativeWindSpeedFails) {
 }
 
 TEST(ValidateDataTest, ExcessiveWindSpeedFails) {
-    CurrentConditions cc(nullptr, "KBFI");
+    CurrentConditions cc(stubHttp, stubClock, "KBFI");
     cc.temperature = 20;
     cc.dew_point = 15;
     cc.wind_speed = 501;
@@ -89,7 +106,7 @@ TEST(ValidateDataTest, ExcessiveWindSpeedFails) {
 // ── CurrentConditions::getErrorString() tests ────────────────────────────────
 
 TEST(GetErrorStringTest, AllCodesReturnNonNull) {
-    CurrentConditions cc(nullptr, "KBFI");
+    CurrentConditions cc(stubHttp, stubClock, "KBFI");
     // ASSERT_NE(..., nullptr) doesn't work in AUnit gtest adapter (nullptr_t cast)
     ASSERT_TRUE(cc.getErrorString(CURRENT_CONDITIONS_OK) != nullptr);
     ASSERT_TRUE(cc.getErrorString(CURRENT_CONDITIONS_ERROR) != nullptr);
@@ -102,7 +119,7 @@ TEST(GetErrorStringTest, AllCodesReturnNonNull) {
 }
 
 TEST(GetErrorStringTest, OkCodeReturnsCorrectString) {
-    CurrentConditions cc(nullptr, "KBFI");
+    CurrentConditions cc(stubHttp, stubClock, "KBFI");
     // Cast literal to const char* so decltype(a) resolves correctly in AUnit adapter
     ASSERT_STREQ(cc.getErrorString(CURRENT_CONDITIONS_OK), (const char*)"No error");
 }
