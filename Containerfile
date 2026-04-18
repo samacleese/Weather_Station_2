@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ninja-build \
     git \
     clang-format \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 # Pin arduino-cli version by downloading the release binary directly
