@@ -50,8 +50,13 @@ assert_exit_code       "flash: missing device exits 1"            1 env SERIAL_P
 assert_output_contains "flash: missing device error message" "Device not found" \
     env SERIAL_PORT=/dev/nonexistent "$SCRIPT" flash
 
-assert_exit_code "monitor: missing device exits 1"             1 env SERIAL_PORT=/dev/nonexistent "$SCRIPT" monitor
-assert_exit_code "flash-device-tests: missing device exits 1"  1 env SERIAL_PORT=/dev/nonexistent "$SCRIPT" flash-device-tests
+assert_exit_code       "monitor: missing device exits 1"             1 env SERIAL_PORT=/dev/nonexistent "$SCRIPT" monitor
+assert_output_contains "monitor: missing device error message" "Device not found" \
+    env SERIAL_PORT=/dev/nonexistent "$SCRIPT" monitor
+
+assert_exit_code       "flash-device-tests: missing device exits 1"  1 env SERIAL_PORT=/dev/nonexistent "$SCRIPT" flash-device-tests
+assert_output_contains "flash-device-tests: missing device error message" "Device not found" \
+    env SERIAL_PORT=/dev/nonexistent "$SCRIPT" flash-device-tests
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
