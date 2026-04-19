@@ -31,23 +31,17 @@ git submodule update --init libs/googletest libs/AUnit
 ```
 
 ```bash
-# Configure (run from repo root, once or when CMakeLists.txt changes)
-cmake \
-  -DCMAKE_TOOLCHAIN_FILE=cmake/Arduino-CMake-Toolchain/Arduino-toolchain.cmake \
-  -DARDUINO_BOARD_OPTIONS_FILE=cmake/BoardOptions.cmake \
-  -B build \
-  -G Ninja
+# All build operations are wrapped by build.sh (auto-detects podman vs docker):
+./build.sh configure           # cmake configure (once, or when CMakeLists.txt changes)
+./build.sh build               # compile firmware
+./build.sh flash               # flash to /dev/ttyUSB0
+./build.sh monitor             # open serial monitor
+./build.sh test-host           # build and run host unit tests
+./build.sh build-device-tests  # compile device test sketch
+./build.sh flash-device-tests  # flash device tests
 
-# Compile
-cmake --build build
-
-# Flash
-SERIAL_PORT=/dev/ttyUSB0 cmake --build build --target upload-WeatherStation
-
-# Read serial output
-arduino-cli monitor --port /dev/ttyUSB0 --config baudrate=115200
-# Note: if the device is in deep sleep, no output will appear until the physical
-# wakeup button on the board is pressed.
+# Override the serial port if needed:
+SERIAL_PORT=/dev/ttyACM0 ./build.sh flash
 
 # Format (Google style, 120-char limit per .clang-format)
 clang-format -i src/**/*.cpp src/**/*.h
