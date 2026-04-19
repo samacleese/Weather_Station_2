@@ -53,33 +53,39 @@ EOF
 
 case "${1:-}" in
     configure)
-        run_in_container cmake \
-            -DCMAKE_TOOLCHAIN_FILE=cmake/Arduino-CMake-Toolchain/Arduino-toolchain.cmake \
-            -DARDUINO_BOARD_OPTIONS_FILE=cmake/BoardOptions.cmake \
-            -B build \
-            -G Ninja
+        run_in_container \
+            "cmake \
+              -DCMAKE_TOOLCHAIN_FILE=cmake/Arduino-CMake-Toolchain/Arduino-toolchain.cmake \
+              -DARDUINO_BOARD_OPTIONS_FILE=cmake/BoardOptions.cmake \
+              -B build \
+              -G Ninja"
         ;;
     build)
-        run_in_container cmake --build build
+        run_in_container "cmake --build build"
         ;;
     flash)
         require_device
-        run_in_container -v "${SERIAL_PORT}:${SERIAL_PORT}" "${USB_GROUP_FLAG[@]}" \
+        run_in_container \
+            "--device" "${SERIAL_PORT}" "${USB_GROUP_FLAG[@]}" \
             "SERIAL_PORT=${SERIAL_PORT} cmake --build build --target upload-WeatherStation"
         ;;
     monitor)
         require_device
-        arduino-cli monitor --port "${SERIAL_PORT}" --config baudrate=115200
+        run_in_container \
+            "--device" "${SERIAL_PORT}" "${USB_GROUP_FLAG[@]}" \
+            "arduino-cli monitor --port ${SERIAL_PORT} --config baudrate=115200"
         ;;
     test-host)
-        run_in_container cmake --build build --target test-host
+        run_in_container \
+            "cmake -S tests/unit -B build-host && cmake --build build-host && ./build-host/unit_tests"
         ;;
     build-device-tests)
-        run_in_container cmake --build build --target build-device-tests
+        run_in_container "cmake --build build --target DeviceUnitTests"
         ;;
     flash-device-tests)
         require_device
-        run_in_container -v "${SERIAL_PORT}:${SERIAL_PORT}" "${USB_GROUP_FLAG[@]}" \
+        run_in_container \
+            "--device" "${SERIAL_PORT}" "${USB_GROUP_FLAG[@]}" \
             "SERIAL_PORT=${SERIAL_PORT} cmake --build build --target upload-DeviceUnitTests"
         ;;
     *)
