@@ -22,14 +22,6 @@ A `Containerfile` at the repo root provides a fully pinned build environment (se
 cp config.cmake .worktrees/<branch-name>/config.cmake
 ```
 
-Git submodules are **not** automatically initialized in new worktrees. After creating a worktree, run:
-```bash
-cd .worktrees/<branch-name>
-git submodule update --init cmake/Arduino-CMake-Toolchain
-# If using libs/ submodules (googletest, AUnit):
-git submodule update --init libs/googletest libs/AUnit
-```
-
 ```bash
 # All build operations are wrapped by build.sh (auto-detects podman vs docker):
 ./build.sh configure           # cmake configure (once, or when CMakeLists.txt changes)
