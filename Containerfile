@@ -12,6 +12,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     clang-format \
     build-essential \
+    libgtest-dev \
+    libgmock-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Pin arduino-cli version by downloading the release binary directly
@@ -28,6 +30,14 @@ RUN mkdir -p /opt/arduino/lib && echo "1.8.16" > /opt/arduino/lib/version.txt
 RUN mkdir -p /root/.arduino15 \
     && echo "sketchbook.path=/root/Arduino" > /root/.arduino15/preferences.txt
 
+# Pin Arduino-CMake-Toolchain at the commit previously tracked as a submodule.
+# This repo has no release tags, so a commit hash is the only stable pin.
+# --no-tags suppresses tag fetching for a leaner clone.
+RUN git clone --no-tags https://github.com/a9183756-gh/Arduino-CMake-Toolchain.git \
+        /opt/arduino-cmake-toolchain \
+    && cd /opt/arduino-cmake-toolchain \
+    && git checkout e745a9bed3c3fb83442d55bf05630f31574674f2
+
 # Pin board support package
 RUN arduino-cli config add board_manager.additional_urls \
         https://github.com/SolderedElectronics/Croduino-Board-Definitions-for-Arduino-IDE/raw/master/package_Croduino_Boards_index.json \
@@ -39,7 +49,8 @@ RUN arduino-cli lib install \
     "ArduinoJson@6.18.5" \
     "ArduinoLog@1.1.1" \
     "InkplateLibrary@10.2.2" \
-    "LCBUrl@1.1.4"
+    "LCBUrl@1.1.4" \
+    "AUnit@1.7.1"
 
 # InkplateLibrary 10.2.2 calls WiFiClientSecure::setInsecure(), which does not exist in
 # the ESP32 Arduino 1.0.5-rc2 core bundled with Croduino_Boards:Inkplate@1.0.1.

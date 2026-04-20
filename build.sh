@@ -55,7 +55,7 @@ case "${1:-}" in
     configure)
         run_in_container \
             "cmake \
-              -DCMAKE_TOOLCHAIN_FILE=cmake/Arduino-CMake-Toolchain/Arduino-toolchain.cmake \
+              -DCMAKE_TOOLCHAIN_FILE=/opt/arduino-cmake-toolchain/Arduino-toolchain.cmake \
               -DARDUINO_BOARD_OPTIONS_FILE=cmake/BoardOptions.cmake \
               -B build \
               -G Ninja"

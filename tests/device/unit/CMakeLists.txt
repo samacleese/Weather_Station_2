@@ -26,7 +26,7 @@ target_include_directories(DeviceUnitTests PRIVATE
     ${CMAKE_BINARY_DIR}/generated
 )
 
-set(ARDUINO_LIB_AUnit_PATH "${CMAKE_SOURCE_DIR}/libs/AUnit" CACHE PATH "AUnit library path")
+set(ARDUINO_LIB_AUnit_PATH "/root/Arduino/libraries/AUnit" CACHE PATH "AUnit library path")
 
 target_link_arduino_libraries(DeviceUnitTests PRIVATE
     core
