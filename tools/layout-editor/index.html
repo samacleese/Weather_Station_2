@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<!-- ABOUTME: Graphical layout editor for Weather Station display elements. -->
+<!-- ABOUTME: Load layout.json, drag elements, export updated layout.json. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Weather Station Layout Editor</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; font-size: 13px; background: #1e1e1e; color: #ccc; height: 100vh; display: flex; flex-direction: column; }
+
+  /* ── Toolbar ── */
+  #toolbar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 14px; background: #2d2d2d; border-bottom: 1px solid #444;
+    flex-shrink: 0;
+  }
+  #toolbar h1 { font-size: 14px; font-weight: 600; color: #eee; margin-right: 8px; }
+  .screen-btn {
+    padding: 4px 14px; border-radius: 4px; border: 1px solid #555; cursor: pointer;
+    background: #3a3a3a; color: #bbb; font-size: 12px;
+  }
+  .screen-btn.active { background: #4a9eff; border-color: #4a9eff; color: #fff; }
+  .spacer { flex: 1; }
+  .toolbar-btn {
+    padding: 5px 14px; border-radius: 4px; border: 1px solid #555; cursor: pointer;
+    background: #3a3a3a; color: #ccc; font-size: 12px;
+  }
+  .toolbar-btn:hover { background: #4a4a4a; }
+
+  /* ── Main layout ── */
+  #main { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── Left panel ── */
+  #left-panel {
+    width: 180px; flex-shrink: 0; background: #252525; border-right: 1px solid #444;
+    overflow-y: auto; padding: 8px 0;
+  }
+  #left-panel h2 { font-size: 11px; text-transform: uppercase; color: #666; padding: 4px 12px 6px; letter-spacing: 0.8px; }
+  .el-item {
+    padding: 7px 12px; cursor: pointer; color: #bbb; border-left: 3px solid transparent;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .el-item:hover { background: #2e2e2e; }
+  .el-item.selected { background: #2a3a52; border-left-color: #4a9eff; color: #fff; }
+  .el-coords { font-size: 10px; color: #666; }
+
+  /* ── Canvas area ── */
+  #canvas-area {
+    flex: 1; overflow: auto; background: #181818;
+    display: flex; align-items: flex-start; justify-content: flex-start; padding: 16px;
+  }
+  #canvas-wrap { position: relative; flex-shrink: 0; }
+  #screen-canvas { display: block; background: #fff; cursor: crosshair; }
+
+  /* Element overlays */
+  .el-marker {
+    position: absolute; cursor: pointer;
+    display: flex; align-items: flex-start;
+    pointer-events: all;
+  }
+  .el-dot {
+    width: 10px; height: 10px; border-radius: 50%; border: 2px solid #4a9eff;
+    background: rgba(74,158,255,0.3); flex-shrink: 0; margin-top: 2px;
+  }
+  .el-label {
+    font-size: 10px; background: rgba(0,0,0,0.7); color: #4a9eff;
+    padding: 1px 4px; border-radius: 2px; margin-left: 4px; white-space: nowrap;
+  }
+  .el-marker.selected .el-dot { background: rgba(255,200,0,0.5); border-color: #ffc800; }
+  .el-marker.selected .el-label { color: #ffc800; }
+
+  /* Kitty preview box */
+  .kitty-box {
+    position: absolute; border: 2px dashed #4a9eff; background: rgba(74,158,255,0.06);
+    pointer-events: none;
+  }
+  .kitty-box.selected { border-color: #ffc800; }
+
+  /* ── Right panel ── */
+  #right-panel {
+    width: 200px; flex-shrink: 0; background: #252525; border-left: 1px solid #444;
+    padding: 12px; overflow-y: auto;
+  }
+  #right-panel h2 { font-size: 11px; text-transform: uppercase; color: #666; margin-bottom: 10px; letter-spacing: 0.8px; }
+  .prop-row { margin-bottom: 10px; }
+  .prop-row label { display: block; font-size: 11px; color: #888; margin-bottom: 3px; }
+  .prop-row input[type=number], .prop-row select {
+    width: 100%; padding: 4px 7px; border-radius: 4px;
+    border: 1px solid #444; background: #1e1e1e; color: #ccc; font-size: 12px;
+  }
+  .prop-row input[type=number]:focus, .prop-row select:focus {
+    outline: none; border-color: #4a9eff;
+  }
+  .prop-row.disabled label { color: #555; }
+  .prop-row.disabled input, .prop-row.disabled select { color: #555; background: #1a1a1a; }
+  #no-selection { color: #555; font-size: 12px; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <h1>Layout Editor</h1>
+  <button class="screen-btn active" data-screen="main">Main</button>
+  <button class="screen-btn" data-screen="loading">Loading</button>
+  <div class="spacer"></div>
+  <button class="toolbar-btn" id="load-btn">Load JSON</button>
+  <button class="toolbar-btn" id="export-btn">Export JSON</button>
+  <input type="file" id="file-input" accept=".json" style="display:none">
+</div>
+
+<div id="main">
+  <div id="left-panel">
+    <h2>Elements</h2>
+    <div id="el-list"></div>
+  </div>
+
+  <div id="canvas-area">
+    <div id="canvas-wrap">
+      <canvas id="screen-canvas"></canvas>
+      <!-- element overlay markers rendered here by JS -->
+    </div>
+  </div>
+
+  <div id="right-panel">
+    <h2>Properties</h2>
+    <div id="props-content">
+      <div id="no-selection">Select an element</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Constants ──────────────────────────────────────────────────────────────
+
+const DISPLAY_W = 1200;
+const DISPLAY_H = 825;
+const SCALE = 0.6;
+
+const VALID_FONT_SIZES = [12, 14, 17, 20, 24, 29, 35, 42, 50, 60, 72, 87, 104, 125, 150];
+
+// Font weight per element (informational, not editable)
+const FONT_WEIGHT = {
+  main: {
+    temperature: 'Roboto_Medium',
+    wind_speed:  'Roboto_Medium',
+    metar:       'Roboto_Medium',
+    description: 'Roboto_Light',
+    battery_info:'Roboto_Light',
+    warnings:    'Roboto_Light',
+    kitty:       null,
+  },
+  loading: {
+    message: 'Roboto_Medium',
+  },
+};
+
+// Default layout — matches layout.json initial values
+const DEFAULT_LAYOUT = {
+  display: { width: 1200, height: 825 },
+  screens: {
+    main: {
+      temperature:  { x: 50,  y: 150, font_size: 150 },
+      wind_speed:   { x: 50,  y: 325, font_size: 150 },
+      description:  { x: 50,  y: 620, font_size: 150 },
+      metar:        { x: 20,  y: 750, font_size: 20  },
+      kitty:        { x: 850, y: 50  },
+      battery_info: { x: 860, y: 400, font_size: 42  },
+      warnings:     { x: 860, y: 490, font_size: 24  },
+    },
+    loading: {
+      message: { x: 300, y: 350, font_size: 35 },
+    },
+  },
+};
+
+// Kitty preview dimensions (matches Kitties::w, Kitties::h — 300x300 placeholder)
+const KITTY_W = 300;
+const KITTY_H = 300;
+
+// ── State ──────────────────────────────────────────────────────────────────
+
+let layout = JSON.parse(JSON.stringify(DEFAULT_LAYOUT));
+let activeScreen = 'main';
+let selectedElement = null; // { screen, name }
+
+// ── Canvas setup ───────────────────────────────────────────────────────────
+
+const canvas = document.getElementById('screen-canvas');
+const ctx = canvas.getContext('2d');
+canvas.width  = Math.round(DISPLAY_W * SCALE);
+canvas.height = Math.round(DISPLAY_H * SCALE);
+
+function drawCanvas() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // White background
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Subtle grid
+  ctx.strokeStyle = '#e8e8e8';
+  ctx.lineWidth = 0.5;
+  const step = 50 * SCALE;
+  for (let x = 0; x <= canvas.width; x += step) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+  }
+  for (let y = 0; y <= canvas.height; y += step) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+  }
+
+  // Border
+  ctx.strokeStyle = '#ccc';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(0, 0, canvas.width, canvas.height);
+}
+
+// ── Overlay markers ────────────────────────────────────────────────────────
+
+const canvasWrap = document.getElementById('canvas-wrap');
+
+function clearMarkers() {
+  canvasWrap.querySelectorAll('.el-marker, .kitty-box').forEach(el => el.remove());
+}
+
+function renderMarkers() {
+  clearMarkers();
+  const screen = layout.screens[activeScreen];
+  if (!screen) return;
+
+  for (const [name, props] of Object.entries(screen)) {
+    const sx = Math.round(props.x * SCALE);
+    const sy = Math.round(props.y * SCALE);
+    const isSel = selectedElement && selectedElement.screen === activeScreen && selectedElement.name === name;
+
+    if (name === 'kitty') {
+      // Dashed bounding box
+      const box = document.createElement('div');
+      box.className = 'kitty-box' + (isSel ? ' selected' : '');
+      box.style.left   = sx + 'px';
+      box.style.top    = sy + 'px';
+      box.style.width  = Math.round(KITTY_W * SCALE) + 'px';
+      box.style.height = Math.round(KITTY_H * SCALE) + 'px';
+      canvasWrap.appendChild(box);
+    }
+
+    const marker = document.createElement('div');
+    marker.className = 'el-marker' + (isSel ? ' selected' : '');
+    marker.style.left = sx + 'px';
+    marker.style.top  = sy + 'px';
+    marker.dataset.name = name;
+
+    const dot = document.createElement('div');
+    dot.className = 'el-dot';
+
+    const label = document.createElement('span');
+    label.className = 'el-label';
+    label.textContent = name;
+
+    marker.appendChild(dot);
+    marker.appendChild(label);
+    marker.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectElement(activeScreen, name);
+    });
+    canvasWrap.appendChild(marker);
+  }
+}
+
+// ── Element list ───────────────────────────────────────────────────────────
+
+const elList = document.getElementById('el-list');
+
+function renderList() {
+  elList.innerHTML = '';
+  const screen = layout.screens[activeScreen];
+  if (!screen) return;
+
+  for (const [name, props] of Object.entries(screen)) {
+    const isSel = selectedElement && selectedElement.screen === activeScreen && selectedElement.name === name;
+    const item = document.createElement('div');
+    item.className = 'el-item' + (isSel ? ' selected' : '');
+    item.dataset.name = name;
+
+    const coords = `(${props.x}, ${props.y})` + (props.font_size != null ? ` sz:${props.font_size}` : '');
+    item.innerHTML = `<div>${name}</div><div class="el-coords">${coords}</div>`;
+    item.addEventListener('click', () => selectElement(activeScreen, name));
+    elList.appendChild(item);
+  }
+}
+
+// ── Properties panel ───────────────────────────────────────────────────────
+
+const propsContent = document.getElementById('props-content');
+
+function renderProps() {
+  propsContent.innerHTML = '';
+
+  if (!selectedElement) {
+    propsContent.innerHTML = '<div id="no-selection">Select an element</div>';
+    return;
+  }
+
+  const { screen, name } = selectedElement;
+  const props = layout.screens[screen][name];
+  if (!props) return;
+
+  const hasFont = props.font_size != null;
+  const fontWeight = FONT_WEIGHT[screen]?.[name];
+
+  function numRow(labelText, key, val) {
+    const row = document.createElement('div');
+    row.className = 'prop-row';
+    const lbl = document.createElement('label');
+    lbl.textContent = labelText;
+    const inp = document.createElement('input');
+    inp.type = 'number';
+    inp.value = val;
+    inp.min = 0;
+    inp.max = key === 'x' ? DISPLAY_W : DISPLAY_H;
+    inp.addEventListener('input', () => {
+      const v = parseInt(inp.value, 10);
+      if (!isNaN(v)) {
+        props[key] = v;
+        renderList();
+        renderMarkers();
+      }
+    });
+    row.appendChild(lbl);
+    row.appendChild(inp);
+    return row;
+  }
+
+  propsContent.appendChild(numRow('X', 'x', props.x));
+  propsContent.appendChild(numRow('Y', 'y', props.y));
+
+  if (hasFont) {
+    const row = document.createElement('div');
+    row.className = 'prop-row';
+    const lbl = document.createElement('label');
+    lbl.textContent = 'Font Size';
+    const sel = document.createElement('select');
+    for (const sz of VALID_FONT_SIZES) {
+      const opt = document.createElement('option');
+      opt.value = sz;
+      opt.textContent = sz;
+      if (sz === props.font_size) opt.selected = true;
+      sel.appendChild(opt);
+    }
+    sel.addEventListener('change', () => {
+      props.font_size = parseInt(sel.value, 10);
+      renderList();
+    });
+    row.appendChild(lbl);
+    row.appendChild(sel);
+    propsContent.appendChild(row);
+  }
+
+  if (fontWeight) {
+    const row = document.createElement('div');
+    row.className = 'prop-row disabled';
+    const lbl = document.createElement('label');
+    lbl.textContent = 'Font Weight';
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.value = fontWeight;
+    inp.disabled = true;
+    inp.style.width = '100%';
+    inp.style.padding = '4px 7px';
+    inp.style.borderRadius = '4px';
+    inp.style.border = '1px solid #333';
+    inp.style.background = '#1a1a1a';
+    inp.style.color = '#555';
+    inp.style.fontSize = '12px';
+    row.appendChild(lbl);
+    row.appendChild(inp);
+    propsContent.appendChild(row);
+  }
+}
+
+// ── Selection ──────────────────────────────────────────────────────────────
+
+function selectElement(screen, name) {
+  selectedElement = { screen, name };
+  renderList();
+  renderMarkers();
+  renderProps();
+}
+
+// ── Canvas click-to-place ──────────────────────────────────────────────────
+
+canvas.addEventListener('click', (e) => {
+  if (!selectedElement) return;
+  const rect = canvas.getBoundingClientRect();
+  const cx = e.clientX - rect.left;
+  const cy = e.clientY - rect.top;
+  const x = Math.round(cx / SCALE);
+  const y = Math.round(cy / SCALE);
+
+  const { screen, name } = selectedElement;
+  layout.screens[screen][name].x = x;
+  layout.screens[screen][name].y = y;
+
+  renderList();
+  renderMarkers();
+  renderProps();
+});
+
+// ── Screen toggle ──────────────────────────────────────────────────────────
+
+document.querySelectorAll('.screen-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.screen-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeScreen = btn.dataset.screen;
+    selectedElement = null;
+    renderList();
+    drawCanvas();
+    renderMarkers();
+    renderProps();
+  });
+});
+
+// ── Load JSON ──────────────────────────────────────────────────────────────
+
+document.getElementById('load-btn').addEventListener('click', () => {
+  document.getElementById('file-input').click();
+});
+
+document.getElementById('file-input').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      layout = JSON.parse(ev.target.result);
+      selectedElement = null;
+      renderList();
+      drawCanvas();
+      renderMarkers();
+      renderProps();
+    } catch (err) {
+      alert('Failed to parse JSON: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+// ── Export JSON ────────────────────────────────────────────────────────────
+
+document.getElementById('export-btn').addEventListener('click', () => {
+  const json = JSON.stringify(layout, null, 2) + '\n';
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'layout.json';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+// ── Initial render ─────────────────────────────────────────────────────────
+
+drawCanvas();
+renderList();
+renderMarkers();
+renderProps();
+</script>
+</body>
+</html>

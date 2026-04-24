@@ -1,0 +1,42 @@
+// ABOUTME: Display layout constants generated from layout.json
+// ABOUTME: Edit layout.json via tools/layout-editor/index.html, then re-run cmake configure
+#pragma once
+
+// Main screen — temperature
+#define LAYOUT_MAIN_TEMPERATURE_X         @LAYOUT_MAIN_TEMPERATURE_X@
+#define LAYOUT_MAIN_TEMPERATURE_Y         @LAYOUT_MAIN_TEMPERATURE_Y@
+#define LAYOUT_MAIN_TEMPERATURE_FONT_SIZE @LAYOUT_MAIN_TEMPERATURE_FONT_SIZE@
+
+// Main screen — wind speed
+#define LAYOUT_MAIN_WIND_SPEED_X          @LAYOUT_MAIN_WIND_SPEED_X@
+#define LAYOUT_MAIN_WIND_SPEED_Y          @LAYOUT_MAIN_WIND_SPEED_Y@
+#define LAYOUT_MAIN_WIND_SPEED_FONT_SIZE  @LAYOUT_MAIN_WIND_SPEED_FONT_SIZE@
+
+// Main screen — description
+#define LAYOUT_MAIN_DESCRIPTION_X         @LAYOUT_MAIN_DESCRIPTION_X@
+#define LAYOUT_MAIN_DESCRIPTION_Y         @LAYOUT_MAIN_DESCRIPTION_Y@
+#define LAYOUT_MAIN_DESCRIPTION_FONT_SIZE @LAYOUT_MAIN_DESCRIPTION_FONT_SIZE@
+
+// Main screen — METAR
+#define LAYOUT_MAIN_METAR_X               @LAYOUT_MAIN_METAR_X@
+#define LAYOUT_MAIN_METAR_Y               @LAYOUT_MAIN_METAR_Y@
+#define LAYOUT_MAIN_METAR_FONT_SIZE       @LAYOUT_MAIN_METAR_FONT_SIZE@
+
+// Main screen — kitty image position (dimensions from Kitties::w/h)
+#define LAYOUT_MAIN_KITTY_X               @LAYOUT_MAIN_KITTY_X@
+#define LAYOUT_MAIN_KITTY_Y               @LAYOUT_MAIN_KITTY_Y@
+
+// Main screen — battery info
+#define LAYOUT_MAIN_BATTERY_INFO_X        @LAYOUT_MAIN_BATTERY_INFO_X@
+#define LAYOUT_MAIN_BATTERY_INFO_Y        @LAYOUT_MAIN_BATTERY_INFO_Y@
+#define LAYOUT_MAIN_BATTERY_INFO_FONT_SIZE @LAYOUT_MAIN_BATTERY_INFO_FONT_SIZE@
+
+// Main screen — warnings
+#define LAYOUT_MAIN_WARNINGS_X            @LAYOUT_MAIN_WARNINGS_X@
+#define LAYOUT_MAIN_WARNINGS_Y            @LAYOUT_MAIN_WARNINGS_Y@
+#define LAYOUT_MAIN_WARNINGS_FONT_SIZE    @LAYOUT_MAIN_WARNINGS_FONT_SIZE@
+
+// Loading screen — message
+#define LAYOUT_LOADING_MESSAGE_X          @LAYOUT_LOADING_MESSAGE_X@
+#define LAYOUT_LOADING_MESSAGE_Y          @LAYOUT_LOADING_MESSAGE_Y@
+#define LAYOUT_LOADING_MESSAGE_FONT_SIZE  @LAYOUT_LOADING_MESSAGE_FONT_SIZE@
