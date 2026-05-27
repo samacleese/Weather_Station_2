@@ -437,6 +437,6 @@ const char PROGMEM r13_[] =
 }  // namespace
 
 const std::map<std::string, const char*> CACerts::ca_certs{
-    {"api.weather.gov", r12_},
+    {"api.weather.gov", r13_},
     {"example.com", digicert_global_g3_tls_ecc_sha384_2020_ca1_},
 };
