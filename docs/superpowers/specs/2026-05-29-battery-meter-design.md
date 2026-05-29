@@ -20,7 +20,8 @@ The device has been logging `{ts, raw, adj}` battery readings to a local JSON st
 1. Remove `ADC_OFFSET` and display correct battery voltage.
 2. Replace the voltage display with a 0–100% battery meter using the empirical lookup table.
 3. Separate the ADC hardware call behind an interface for testability.
-4. Keep `BatteryLogger` running to verify % readings over the next discharge cycle.
+4. Keep `BatteryLogger` running to verify % readings over the next discharge cycle; simplify
+   it to log only the raw voltage (the `adj` field is vestigial now that the offset is zero).
 
 ## Empirical Lookup Table
 
@@ -47,12 +48,11 @@ The curve is mostly linear in the 20–80% range, with the classic LiPo plateau 
 
 ## Architecture
 
-Three new/changed units:
-
 ```
-src/display/BatteryReader.h              ← new: abstract interface (header-only)
+src/display/IBatteryReader.h             ← new: abstract interface (header-only)
 src/display/InkplateBatteryReader.h/.cpp ← new: hardware adapter
 src/display/BatteryMeter.h/.cpp          ← new: lookup table + voltageToPercent()
+src/network/BatteryLogger.h/.cpp         ← changed: remove adjustedVoltage param, log {ts, raw} only
 Weather_Station_2.cpp                    ← changed: remove ADC_OFFSET, use reader+meter
 tests/unit/BatteryMeterTest.cpp          ← new: host unit tests
 tests/unit/CMakeLists.txt                ← changed: add BatteryMeterTest + BatteryMeter.cpp
@@ -60,23 +60,23 @@ tests/unit/CMakeLists.txt                ← changed: add BatteryMeterTest + Bat
 
 ## Component Design
 
-### `BatteryReader` (header-only interface)
+### `IBatteryReader` (header-only interface)
 
 ```cpp
-class BatteryReader {
+class IBatteryReader {
 public:
-    virtual ~BatteryReader() = default;
+    virtual ~IBatteryReader() = default;
     virtual float readVoltage() const = 0;
 };
 ```
 
-Pure abstract. No state. Lives in `src/display/BatteryReader.h`.
+Pure abstract. No state. Lives in `src/display/IBatteryReader.h`.
 
 ### `InkplateBatteryReader` (hardware adapter)
 
 ```cpp
-// InkplateBatteryReader.h must #include "BatteryReader.h"
-class InkplateBatteryReader : public BatteryReader {
+// InkplateBatteryReader.h must #include "IBatteryReader.h"
+class InkplateBatteryReader : public IBatteryReader {
 public:
     explicit InkplateBatteryReader(Inkplate& display);
     float readVoltage() const override;  // calls display.readBattery()
@@ -86,7 +86,7 @@ public:
 The only place `display.readBattery()` is called after migration. Takes `Inkplate&` by
 reference — does not own the display.
 
-Placement note: `BatteryReader`, `InkplateBatteryReader`, and `BatteryMeter` live in
+Placement note: `IBatteryReader`, `InkplateBatteryReader`, and `BatteryMeter` live in
 `src/display/` rather than `src/network/` because they serve display rendering (battery %
 is a display element). `BatteryLogger` in `src/network/` is a network concern (POSTing
 data); the two responsibilities don't overlap.
@@ -111,8 +111,24 @@ sorted descending by voltage. `voltageToPercent` algorithm:
 4. Linearly interpolate between `table[i]` and `table[i+1]`, then round to nearest integer
    (`static_cast<int>(std::round(result))`) before returning.
 
-`BatteryMeter` and `BatteryReader` are intentionally decoupled — the meter is pure math
+`BatteryMeter` and `IBatteryReader` are intentionally decoupled — the meter is pure math
 with no hardware dependency.
+
+### `BatteryLogger` changes
+
+Simplify the log signature to remove the now-meaningless adjusted value:
+
+```cpp
+// Before
+void log(time_t timestamp, float rawVoltage, float adjustedVoltage);
+
+// After
+void log(time_t timestamp, float voltage);
+```
+
+The JSON payload changes from `{"ts": …, "raw": …, "adj": …}` to `{"ts": …, "raw": …}`.
+The historical dataset already in the store is unaffected (server appends; old entries keep
+their `adj` field, new entries simply won't have it).
 
 ### `Weather_Station_2.cpp` changes
 
@@ -133,11 +149,11 @@ Changes to make at both call sites:
   #include "src/display/BatteryMeter.h"
   #include "src/display/InkplateBatteryReader.h"
   ```
-  (`BatteryReader.h` is included transitively because `InkplateBatteryReader.h` must `#include "BatteryReader.h"` — see Component Design above.)
+  (`IBatteryReader.h` is included transitively because `InkplateBatteryReader.h` must
+  `#include "IBatteryReader.h"` — see Component Design above.)
 - Remove the `ADC_OFFSET` constant declaration (line 46) and all uses.
-- Replace `display.readBattery()` with `reader.readVoltage()` where `reader` is an
-  `InkplateBatteryReader` constructed once before both paths: 
-  `InkplateBatteryReader reader(display);`
+- Construct `InkplateBatteryReader reader(display)` once before both paths (before the
+  `if (updateResult != CURRENT_CONDITIONS_OK)` block).
 - `rawBattery` is no longer needed. Remove it from both scopes.
   - **Error path**: replace `float rawBattery = display.readBattery(); float voltage = rawBattery + ADC_OFFSET;` with `float voltage = reader.readVoltage();` (new local declaration inside the inner `else` block, as before).
   - **Normal path**: `voltage` is already declared at outer scope (line 191). Replace `float rawBattery = display.readBattery(); voltage = rawBattery + ADC_OFFSET;` with the assignment `voltage = reader.readVoltage();` — no new declaration.
@@ -149,9 +165,7 @@ Changes to make at both call sites:
 - Remove the `"raw: "` debug block (lines 124–128 in error path, lines 206–210 in normal
   path) entirely.
 - In the normal path, update the `BatteryLogger` call from
-  `batteryLogger.log(now, rawBattery, voltage)` to `batteryLogger.log(now, voltage, voltage)`.
-  Both arguments are the same because the offset is zero. The `adj` field is vestigial;
-  keeping the log schema unchanged preserves the existing 6,000-entry historical dataset.
+  `batteryLogger.log(now, rawBattery, voltage)` to `batteryLogger.log(now, voltage)`.
 
 ## Error Handling
 
@@ -170,7 +184,8 @@ host build.
 Test cases for `BatteryMeter::voltageToPercent`:
 
 - Each of the 11 breakpoint voltages returns its exact percentage.
-- Midpoint between two adjacent breakpoints interpolates correctly: 4.241V (midpoint of 4.188V–4.294V) returns 95%.
+- Midpoint between two adjacent breakpoints interpolates correctly: 4.241V (midpoint of
+  4.188V–4.294V) returns 95%.
 - Voltage below 3.224V clamps to 0%.
 - Voltage above 4.294V clamps to 100%.
 
