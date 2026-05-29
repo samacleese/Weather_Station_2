@@ -101,9 +101,15 @@ public:
 ```
 
 Owns the lookup table as a file-scope `static const` array of `{voltage, percent}` pairs
-sorted descending by voltage. `voltageToPercent` walks the table, finds the bracketing pair,
-linearly interpolates, and rounds to the nearest integer before returning. Clamped: below
-3.224V returns 0, above 4.294V returns 100.
+sorted descending by voltage. `voltageToPercent` algorithm:
+
+1. If `voltage >= 4.294`, return 100 (clamp).
+2. If `voltage <= 3.224`, return 0 (clamp).
+3. Walk the table to find the first entry `i` where `table[i].voltage >= voltage` and
+   `table[i+1].voltage < voltage`. If `voltage` exactly equals `table[i].voltage`, return
+   `table[i].percent` directly.
+4. Linearly interpolate between `table[i]` and `table[i+1]`, then round to nearest integer
+   (`static_cast<int>(std::round(result))`) before returning.
 
 `BatteryMeter` and `BatteryReader` are intentionally decoupled — the meter is pure math
 with no hardware dependency.
@@ -133,8 +139,9 @@ Changes to make at both call sites:
   `InkplateBatteryReader` constructed once before both paths: 
   `InkplateBatteryReader reader(display);`
 - `rawBattery` is no longer needed. Remove it from both scopes.
-  - **Error path**: replace `float rawBattery = display.readBattery(); float voltage = rawBattery + ADC_OFFSET;` with `float voltage = reader.readVoltage();` (new local declaration, same as before).
+  - **Error path**: replace `float rawBattery = display.readBattery(); float voltage = rawBattery + ADC_OFFSET;` with `float voltage = reader.readVoltage();` (new local declaration inside the inner `else` block, as before).
   - **Normal path**: `voltage` is already declared at outer scope (line 191). Replace `float rawBattery = display.readBattery(); voltage = rawBattery + ADC_OFFSET;` with the assignment `voltage = reader.readVoltage();` — no new declaration.
+  - Note: after migration there are two variables named `voltage` in `setup()`. This is intentional — they exist in non-overlapping scopes (the inner `else` block always exits via `esp_deep_sleep_start()` before the outer `float voltage;` at line 191 is reached).
 - Each path prints battery + temperature together on one line:
   `display.print(voltage, 2); display.print('V'); display.print(' '); display.print(temperature, DEC); display.print('C');`
   Replace the voltage portion only:
@@ -163,7 +170,7 @@ host build.
 Test cases for `BatteryMeter::voltageToPercent`:
 
 - Each of the 11 breakpoint voltages returns its exact percentage.
-- Midpoint between two adjacent breakpoints interpolates correctly.
+- Midpoint between two adjacent breakpoints interpolates correctly: 4.241V (midpoint of 4.188V–4.294V) returns 95%.
 - Voltage below 3.224V clamps to 0%.
 - Voltage above 4.294V clamps to 100%.
 
