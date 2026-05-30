@@ -14,7 +14,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # ── Firmware target ───────────────────────────────────────────────────────────
 add_executable(WeatherStation
     Weather_Station_2.cpp
+    src/display/BatteryMeter.cpp
     src/display/DisplayLocations.cpp
+    src/display/InkplateBatteryReader.cpp
     src/display/Kitties.cpp
     src/display/KittyPics.cpp
     src/network/BatteryLogger.cpp
