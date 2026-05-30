@@ -20,8 +20,10 @@ FetchContent_MakeAvailable(ArduinoJson)
 add_executable(unit_tests
     CACertsTest.cpp
     CurrentConditionsTest.cpp
+    BatteryMeterTest.cpp
     ../../src/security/CACerts.cpp
     ../../src/network/CurrentConditions.cpp
+    ../../src/display/BatteryMeter.cpp
 )
 
 target_include_directories(unit_tests PRIVATE
