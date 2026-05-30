@@ -1,5 +1,5 @@
 // ABOUTME: Posts battery voltage readings to a local JSON store for discharge curve analysis.
-// ABOUTME: Sends a single {ts, raw, adj} entry per reading; the server appends and manages the array.
+// ABOUTME: Sends a single {ts, raw} entry per reading; the server appends to the array.
 #include "BatteryLogger.h"
 
 #include <ArduinoJson.h>
@@ -8,11 +8,10 @@
 
 BatteryLogger::BatteryLogger(const String& url) : m_url(url) {}
 
-void BatteryLogger::log(time_t timestamp, float rawVoltage, float adjustedVoltage) {
-    StaticJsonDocument<96> doc;
+void BatteryLogger::log(time_t timestamp, float voltage) {
+    StaticJsonDocument<64> doc;
     doc["ts"] = (long)timestamp;
-    doc["raw"] = rawVoltage;
-    doc["adj"] = adjustedVoltage;
+    doc["raw"] = voltage;
 
     String body;
     serializeJson(doc, body);

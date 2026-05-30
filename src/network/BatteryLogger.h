@@ -11,7 +11,7 @@ class BatteryLogger {
     explicit BatteryLogger(const String& url);
 
     // Appends a reading to the remote store. Silently ignores network/server errors.
-    void log(time_t timestamp, float rawVoltage, float adjustedVoltage);
+    void log(time_t timestamp, float voltage);
 
    private:
     String m_url;
