@@ -33,6 +33,8 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 #include "src/display/KittyPics.h"
 #include "src/network/BatteryLogger.h"
 #include "src/network/Network.h"
+#include "src/display/BatteryMeter.h"
+#include "src/display/InkplateBatteryReader.h"
 
 #define US_PER_SEC 1000000ull
 #define TIME_TO_SLEEP_S 600
@@ -43,7 +45,7 @@ Inkplate display(INKPLATE_3BIT);
 char buffer[256];
 
 void setup() {
-    float ADC_OFFSET = -0.50;
+    InkplateBatteryReader batteryReader(display);
     auto network = std::make_shared<Network>(WIFI_SSID, WIFI_PASSWORD);
     rtc_get_reset_reason(0);
     DisplayLocation kitties(850, 50, 300, 300);
@@ -110,22 +112,15 @@ void setup() {
 
             // Get and show battery info at least
             int temperature = display.readTemperature();
-            float rawBattery = display.readBattery();
-            float voltage = rawBattery + ADC_OFFSET;
+            float voltage = batteryReader.readVoltage();
 
             display.setFont(Roboto_Light.at(42));
             display.setCursor(860, 400);
-            display.print(voltage, 2);
-            display.print('V');
+            display.print(BatteryMeter::voltageToPercent(voltage));
+            display.print('%');
             display.print(' ');
             display.print(temperature, DEC);
             display.print('C');
-
-            display.setFont(Roboto_Light.at(24));
-            display.setCursor(860, 455);
-            display.print("raw: ");
-            display.print(rawBattery, 3);
-            display.print('V');
 
             display.display();
 
@@ -191,23 +186,16 @@ void setup() {
     float voltage;
 
     temperature = display.readTemperature();
-    float rawBattery = display.readBattery();
-    voltage = rawBattery + ADC_OFFSET;
+    voltage = batteryReader.readVoltage();
 
     // Display system info
     display.setFont(Roboto_Light.at(42));
     display.setCursor(860, 400);
-    display.print(voltage, 2);
-    display.print('V');
+    display.print(BatteryMeter::voltageToPercent(voltage));
+    display.print('%');
     display.print(' ');
     display.print(temperature, DEC);
     display.print('C');
-
-    display.setFont(Roboto_Light.at(24));
-    display.setCursor(860, 455);
-    display.print("raw: ");
-    display.print(rawBattery, 3);
-    display.print('V');
 
     // If there was a warning but we have data, show it
     if (updateResult != CURRENT_CONDITIONS_OK) {
@@ -223,7 +211,7 @@ void setup() {
     time_t now;
     time(&now);
     BatteryLogger batteryLogger(BATTERY_LOGGER_URL);
-    batteryLogger.log(now, rawBattery, voltage);
+    batteryLogger.log(now, voltage);
 
     // Goto deep sleep
     rtc_gpio_isolate(GPIO_NUM_12);
