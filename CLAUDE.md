@@ -152,3 +152,16 @@ The code filters the response to only `textDescription`, `rawMessage`, `windSpee
 2. Run `python3 tools/image_converter.py` (edit the script to point at your image)
 3. Update `src/display/KittyPics.h/.cpp` with the new bitmap array
 4. Register the image in `src/display/Kitties.h/.cpp`
+
+## Layout Editor
+
+Display text positions and font sizes are defined in `layout.json` and generated into `layout.h` at cmake configure time — see `cmake/Layout.cmake`. Edit `layout.json` visually with `tools/layout-editor/index.html` (open it directly in a browser).
+
+Adding a new layout field requires updating all four of these in lockstep:
+
+1. `layout.json` — add the field's data (`x`, `y`, `font_size` as applicable) under the relevant screen
+2. `cmake/Layout.cmake` — add a `string(JSON ... GET ...)` line to extract the new field
+3. `src/layout.h.in` — add the corresponding `@PLACEHOLDER@` → `#define`
+4. `tools/layout-editor/index.html` — add UI controls so the field can be edited visually
+
+Re-run `./build.sh configure` after editing `layout.json` to regenerate `layout.h`.
