@@ -1,0 +1,17 @@
+{
+  "display": { "width": 1200, "height": 825 },
+  "screens": {
+    "main": {
+      "temperature":  { "x": 50,  "y": 150, "font_size": 150 },
+      "wind_speed":   { "x": 50,  "y": 325, "font_size": 150 },
+      "description":  { "x": 50,  "y": 620, "font_size": 150 },
+      "metar":        { "x": 20,  "y": 750, "font_size": 20  },
+      "kitty":        { "x": 850, "y": 50  },
+      "battery_info": { "x": 860, "y": 400, "font_size": 42  },
+      "warnings":     { "x": 860, "y": 490, "font_size": 24  }
+    },
+    "loading": {
+      "message":      { "x": 300, "y": 350, "font_size": 35  }
+    }
+  }
+}

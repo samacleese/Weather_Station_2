@@ -22,6 +22,7 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 #endif
 
 #include "weather_station_2/user_settings.h"
+#include "weather_station_2/layout.h"
 #include "src/network/IClock.h"
 #include "src/network/IHttpClient.h"
 #include "src/network/SystemClock.h"
@@ -59,8 +60,8 @@ void setup() {
     display.clearDisplay();
     display.setTextSize(1);
     display.setTextColor(0, 7);
-    display.setFont(Roboto_Medium.at(35));
-    display.setCursor(300, 350);
+    display.setFont(Roboto_Medium.at(LAYOUT_LOADING_MESSAGE_FONT_SIZE));
+    display.setCursor(LAYOUT_LOADING_MESSAGE_X, LAYOUT_LOADING_MESSAGE_Y);
     display.print("Weather Station Loading...");
     display.display();
 
@@ -136,8 +137,8 @@ void setup() {
     // Draw Temperature with validity check
     display.setTextSize(1);
     display.setTextColor(0, 7);
-    display.setFont(Roboto_Medium.at(150));
-    display.setCursor(50, 150);
+    display.setFont(Roboto_Medium.at(LAYOUT_MAIN_TEMPERATURE_FONT_SIZE));
+    display.setCursor(LAYOUT_MAIN_TEMPERATURE_X, LAYOUT_MAIN_TEMPERATURE_Y);
     if (curr.temperature != -999) {
         sprintf(buffer, "%d C", curr.temperature);
     } else {
@@ -146,7 +147,8 @@ void setup() {
     display.print(buffer);
 
     // Draw Windspeed with validity check
-    display.setCursor(50, 325);
+    display.setFont(Roboto_Medium.at(LAYOUT_MAIN_WIND_SPEED_FONT_SIZE));
+    display.setCursor(LAYOUT_MAIN_WIND_SPEED_X, LAYOUT_MAIN_WIND_SPEED_Y);
     if (curr.wind_speed != -999) {
         sprintf(buffer, "%d km/h", curr.wind_speed);
     } else {
@@ -155,14 +157,14 @@ void setup() {
     display.print(buffer);
 
     // Raw Message
-    display.setFont(Roboto_Medium.at(20));
-    display.setCursor(20, 750);
+    display.setFont(Roboto_Medium.at(LAYOUT_MAIN_METAR_FONT_SIZE));
+    display.setCursor(LAYOUT_MAIN_METAR_X, LAYOUT_MAIN_METAR_Y);
     sprintf(buffer, "%s", curr.raw_message);
     display.print(buffer);
 
     // Weather description
-    display.setFont(Roboto_Light.at(150));
-    display.setCursor(50, 620);
+    display.setFont(Roboto_Light.at(LAYOUT_MAIN_DESCRIPTION_FONT_SIZE));
+    display.setCursor(LAYOUT_MAIN_DESCRIPTION_X, LAYOUT_MAIN_DESCRIPTION_Y);
     sprintf(buffer, "%s", curr.description);
     {
         int16_t x, y, x1, y1;
@@ -179,7 +181,7 @@ void setup() {
     display.print(buffer);
 
     // Draw kitty
-    display.drawBitmap3Bit(850, 50, nextKitty, Kitties::w, Kitties::h);
+    display.drawBitmap3Bit(LAYOUT_MAIN_KITTY_X, LAYOUT_MAIN_KITTY_Y, nextKitty, Kitties::w, Kitties::h);
 
     // Get the temp and battery voltage
     int temperature;
@@ -189,8 +191,8 @@ void setup() {
     voltage = batteryReader.readVoltage();
 
     // Display system info
-    display.setFont(Roboto_Light.at(42));
-    display.setCursor(860, 400);
+    display.setFont(Roboto_Light.at(LAYOUT_MAIN_BATTERY_INFO_FONT_SIZE));
+    display.setCursor(LAYOUT_MAIN_BATTERY_INFO_X, LAYOUT_MAIN_BATTERY_INFO_Y);
     display.print(BatteryMeter::voltageToPercent(voltage));
     display.print('%');
     display.print(' ');
@@ -199,8 +201,8 @@ void setup() {
 
     // If there was a warning but we have data, show it
     if (updateResult != CURRENT_CONDITIONS_OK) {
-        display.setFont(Roboto_Light.at(24));
-        display.setCursor(860, 490);
+        display.setFont(Roboto_Light.at(LAYOUT_MAIN_WARNINGS_FONT_SIZE));
+        display.setCursor(LAYOUT_MAIN_WARNINGS_X, LAYOUT_MAIN_WARNINGS_Y);
         display.print("Warning: ");
         display.print(curr.getErrorString(updateResult));
     }
