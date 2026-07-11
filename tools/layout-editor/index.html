@@ -125,6 +125,7 @@ const SAMPLE_TEXT = {
   battery_info: '3.85V 22C',
   warnings:     'Warning: timeout',
   message:      'Weather Station Loading...',
+  version:      'a1b2c3d',
 };
 
 // Whether element uses bold or light weight (fixed in firmware)
@@ -140,6 +141,7 @@ const IS_BOLD = {
   },
   loading: {
     message: true,
+    version: false,
   },
 };
 
@@ -155,6 +157,7 @@ const FONT_WEIGHT_LABEL = {
   },
   loading: {
     message: 'Roboto_Medium',
+    version: 'Roboto_Light',
   },
 };
 
@@ -173,6 +176,7 @@ const DEFAULT_LAYOUT = {
     },
     loading: {
       message: { x: 300, y: 350, font_size: 35 },
+      version: { x: 300, y: 395, font_size: 14 },
     },
   },
 };

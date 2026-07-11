@@ -9,6 +9,7 @@ if(NOT EXISTS "${CMAKE_SOURCE_DIR}/config.cmake")
 endif()
 include("${CMAKE_SOURCE_DIR}/config.cmake")
 include(cmake/Layout.cmake)
+include(cmake/Version.cmake)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
