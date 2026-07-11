@@ -43,4 +43,9 @@ string(JSON LAYOUT_LOADING_MESSAGE_X         GET ${LAYOUT_JSON} screens loading 
 string(JSON LAYOUT_LOADING_MESSAGE_Y         GET ${LAYOUT_JSON} screens loading message y)
 string(JSON LAYOUT_LOADING_MESSAGE_FONT_SIZE GET ${LAYOUT_JSON} screens loading message font_size)
 
+# Loading screen — version
+string(JSON LAYOUT_LOADING_VERSION_X         GET ${LAYOUT_JSON} screens loading version x)
+string(JSON LAYOUT_LOADING_VERSION_Y         GET ${LAYOUT_JSON} screens loading version y)
+string(JSON LAYOUT_LOADING_VERSION_FONT_SIZE GET ${LAYOUT_JSON} screens loading version font_size)
+
 configure_file(src/layout.h.in ${CMAKE_BINARY_DIR}/generated/weather_station_2/layout.h)

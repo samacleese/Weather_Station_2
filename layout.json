@@ -11,7 +11,8 @@
       "warnings":     { "x": 860, "y": 490, "font_size": 24  }
     },
     "loading": {
-      "message":      { "x": 300, "y": 350, "font_size": 35  }
+      "message":      { "x": 300, "y": 350, "font_size": 35  },
+      "version":      { "x": 300, "y": 395, "font_size": 14  }
     }
   }
 }

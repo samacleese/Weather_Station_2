@@ -23,6 +23,7 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 
 #include "weather_station_2/user_settings.h"
 #include "weather_station_2/layout.h"
+#include "weather_station_2/version.h"
 #include "src/network/IClock.h"
 #include "src/network/IHttpClient.h"
 #include "src/network/SystemClock.h"
@@ -53,6 +54,7 @@ void setup() {
     Serial.begin(115200);
     Log.begin(LOG_LEVEL_VERBOSE, &Serial);
     Log.setShowLevel(true);
+    Log.notice(F("Firmware version: %s" CR), GIT_VERSION);
 
     display.begin();
 
@@ -63,6 +65,9 @@ void setup() {
     display.setFont(Roboto_Medium.at(LAYOUT_LOADING_MESSAGE_FONT_SIZE));
     display.setCursor(LAYOUT_LOADING_MESSAGE_X, LAYOUT_LOADING_MESSAGE_Y);
     display.print("Weather Station Loading...");
+    display.setFont(Roboto_Light.at(LAYOUT_LOADING_VERSION_FONT_SIZE));
+    display.setCursor(LAYOUT_LOADING_VERSION_X, LAYOUT_LOADING_VERSION_Y);
+    display.print(GIT_VERSION);
     display.display();
 
     network->begin();
