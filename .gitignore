@@ -7,3 +7,4 @@ Inkplate-Arduino-library/
 config.cmake
 venv
 build-host/
+.superpowers/
