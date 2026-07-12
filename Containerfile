@@ -38,11 +38,20 @@ RUN git clone --no-tags https://github.com/a9183756-gh/Arduino-CMake-Toolchain.g
     && cd /opt/arduino-cmake-toolchain \
     && git checkout e745a9bed3c3fb83442d55bf05630f31574674f2
 
-# Pin board support package
-RUN arduino-cli config add board_manager.additional_urls \
-        https://github.com/SolderedElectronics/Croduino-Board-Definitions-for-Arduino-IDE/raw/master/package_Croduino_Boards_index.json \
-    && arduino-cli core update-index \
-    && arduino-cli core install Croduino_Boards:Inkplate@1.0.1
+# Pin board support package. esp32:esp32 (Espressif's mainline core) is listed in
+# arduino-cli's default package index, so no board_manager.additional_urls entry is needed.
+# Croduino_Boards:Inkplate was dropped: its board package repo is unmaintained (no release
+# since 2022) and only ever bundled ESP32 Arduino 1.0.5-rc2, too old for current
+# InkplateLibrary releases (see cmake/inkplate10-board.txt for the custom board this adds).
+RUN arduino-cli core update-index \
+    && arduino-cli core install esp32:esp32@3.3.10
+
+# Register the Inkplate 10 as a board under esp32:esp32 (see cmake/inkplate10-board.txt for
+# what this defines and why).
+COPY cmake/inkplate10-board.txt /tmp/inkplate10-board.txt
+RUN cat /tmp/inkplate10-board.txt \
+    >> /root/.arduino15/packages/esp32/hardware/esp32/3.3.10/boards.txt \
+    && rm /tmp/inkplate10-board.txt
 
 # Pin libraries
 RUN arduino-cli lib install \
@@ -52,16 +61,9 @@ RUN arduino-cli lib install \
     "LCBUrl@1.1.4" \
     "AUnit@1.7.1"
 
-# InkplateLibrary 10.2.2 calls WiFiClientSecure::setInsecure(), which does not exist in
-# the ESP32 Arduino 1.0.5-rc2 core bundled with Croduino_Boards:Inkplate@1.0.1.
-# setInsecure() was added in ESP32 Arduino 1.0.6; this patch keeps compilation working
-# against the pinned board core.
-RUN sed -i 's/^\( *\)client->setInsecure(); \/\/ Use HTTPS/\1\/\/ client->setInsecure(); \/\/ Use HTTPS/' \
-    /root/Arduino/libraries/InkplateLibrary/src/include/NetworkClient.cpp
-
 # Python tooling: image codegen (tools/image_converter.py) and esptool (board package).
 # --break-system-packages is required on Ubuntu 24.04, which ships with PEP 668
 # EXTERNALLY-MANAGED protection even inside a container.
-# pyserial is required by esptool.py (bundled in Croduino_Boards:Inkplate@1.0.1) to
-# generate the .bin from the compiled .elf.
+# pyserial is required by esptool.py (bundled in esp32:esp32) to generate the .bin from the
+# compiled .elf.
 RUN pip3 install --no-cache-dir --break-system-packages Pillow numpy pyserial
