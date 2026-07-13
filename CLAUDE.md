@@ -52,7 +52,7 @@ The `Wavefrom load failed! Upload new waveform in EEPROM.` warning on boot is a 
 
 ```
 Weather_Station_2/
-├── Weather_Station_2.cpp          # Main firmware entry point
+├── Weather_Station_2.ino          # Main firmware entry point
 ├── src/                           # Core application code
 │   ├── network/                   # Network and API components
 │   │   ├── Network.h/.cpp         # WiFi management
@@ -76,7 +76,7 @@ Weather_Station_2/
 
 ## Architecture
 
-All application logic lives in `setup()` in `Weather_Station_2.cpp`. `loop()` is intentionally empty — the device deep-sleeps and reboots each cycle rather than looping.
+All application logic lives in `setup()` in `Weather_Station_2.ino`. `loop()` is intentionally empty — the device deep-sleeps and reboots each cycle rather than looping.
 
 **Data flow:**
 1. Boot → init display → connect WiFi (via `Network`) → sync NTP
@@ -86,7 +86,7 @@ All application logic lives in `setup()` in `Weather_Station_2.cpp`. `loop()` is
 
 **Key non-obvious details:**
 
-- `Weather_Station_2.cpp` includes a `std::make_unique` polyfill (lines 12–18) because the ESP32 Arduino core doesn't provide it.
+- `Weather_Station_2.ino` includes a `std::make_unique` polyfill (lines 12–17) because the ESP32 Arduino core doesn't provide it.
 - `Kitties` uses `RTC_DATA_ATTR` to persist the image rotation counter across deep sleep cycles without hitting flash.
 - `CACerts` is a static `std::map<String, const char*>` mapping hostnames to PEM certs embedded as PROGMEM strings. Used by `Network` to configure `WiFiClientSecure` before each HTTPS request.
 - WiFi credentials and station ID are in `config.cmake` (gitignored; copy from `config.cmake.example`).
