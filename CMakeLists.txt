@@ -33,11 +33,7 @@ add_custom_target(WeatherStation ALL
 )
 
 add_custom_target(upload-WeatherStation
-    COMMAND arduino-cli upload
-        -p $ENV{SERIAL_PORT}
-        -b ${INKPLATE10_FQBN}
-        --input-dir ${WEATHER_STATION_BUILD_DIR}
-        ${CMAKE_SOURCE_DIR}
+    COMMAND sh -c "arduino-cli upload -p \"$SERIAL_PORT\" -b ${INKPLATE10_FQBN} --input-dir ${WEATHER_STATION_BUILD_DIR} ${CMAKE_SOURCE_DIR}"
     DEPENDS WeatherStation
     COMMENT "Uploading WeatherStation firmware"
     VERBATIM
