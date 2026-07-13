@@ -1,23 +1,22 @@
 # CMakeLists.txt
 # ABOUTME: Build target for the grayscale calibration test sketch.
 # ABOUTME: Standalone Inkplate target with no network or sensor dependencies.
+set(CALIBRATION_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/GrayscaleCalibration")
 
-# Partition table — toolchain expects partitions.csv in the target's binary dir.
-# The calibration sketch is small; the default partition scheme is sufficient.
-file(COPY
-    "${ARDUINO_BOARD_RUNTIME_PLATFORM_PATH}/tools/partitions/default.csv"
-    DESTINATION "${CMAKE_CURRENT_BINARY_DIR}"
-)
-file(RENAME
-    "${CMAKE_CURRENT_BINARY_DIR}/default.csv"
-    "${CMAKE_CURRENT_BINARY_DIR}/partitions.csv"
+add_custom_target(GrayscaleCalibration ALL
+    COMMAND arduino-cli compile
+        --fqbn ${INKPLATE10_FQBN}
+        --board-options "PSRAM=enabled,PartitionScheme=default,CPUFreq=240"
+        --build-path ${CALIBRATION_BUILD_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMENT "Compiling GrayscaleCalibration via arduino-cli"
+    VERBATIM
 )
 
-add_executable(GrayscaleCalibration
-    GrayscaleCalibration.cpp
+add_custom_target(upload-GrayscaleCalibration
+    COMMAND sh -c "arduino-cli upload -p \"$SERIAL_PORT\" -b ${INKPLATE10_FQBN} --input-dir ${CALIBRATION_BUILD_DIR} ${CMAKE_CURRENT_SOURCE_DIR}"
+    DEPENDS GrayscaleCalibration
+    COMMENT "Uploading GrayscaleCalibration"
+    VERBATIM
 )
-target_link_arduino_libraries(GrayscaleCalibration PRIVATE
-    core
-    Inkplate
-)
-target_enable_arduino_upload(GrayscaleCalibration)

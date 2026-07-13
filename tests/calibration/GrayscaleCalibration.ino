@@ -1,7 +1,6 @@
 // ABOUTME: Calibration sketch for Inkplate 10 grayscale levels.
 // ABOUTME: Cycles through all 8 shades on button press for luminance measurement.
 
-#include <Arduino.h>
 #include <Inkplate.h>
 
 #define WAKEUP_BUTTON_PIN 36
