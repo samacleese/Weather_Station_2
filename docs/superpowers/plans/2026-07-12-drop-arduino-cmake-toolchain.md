@@ -353,10 +353,44 @@ EOF
 
 ## Task 5: Update `build.sh`
 
+**Corrected per Errata above: `run_in_container` must also stop mounting the repo at a fixed `/project` path.** `WeatherStation`'s `arduino-cli compile ${CMAKE_SOURCE_DIR}` invocation (Task 2) requires the sketch directory's basename to be `Weather_Station_2` (matching `Weather_Station_2.ino`) — a fixed `/project` mount point breaks this every time, container-wide, regardless of what the host checkout is named.
+
 **Files:**
 - Modify: `build.sh`
 
-- [ ] **Step 1: Drop the toolchain-file flag from `configure`**
+- [ ] **Step 1: Change the container mount point so its basename matches the sketch file**
+
+In `run_in_container()`, change:
+
+```bash
+run_in_container() {
+    local cmd="${*: -1}"
+    local -a extra=("${@:1:$#-1}")
+    "$RUNNER" run --rm "${extra[@]}" \
+        -v "$(pwd):/project${SELINUX_LABEL}" \
+        -w /project \
+        "$IMAGE" \
+        bash -c "$cmd"
+}
+```
+
+to:
+
+```bash
+run_in_container() {
+    local cmd="${*: -1}"
+    local -a extra=("${@:1:$#-1}")
+    "$RUNNER" run --rm "${extra[@]}" \
+        -v "$(pwd):/build/Weather_Station_2${SELINUX_LABEL}" \
+        -w /build/Weather_Station_2 \
+        "$IMAGE" \
+        bash -c "$cmd"
+}
+```
+
+Every other reference in `build.sh` is a relative path (`build`, `build-host`, CMake target names) or handled entirely inside the container via `cmake`/`arduino-cli`, so this one change is sufficient — verify with `grep -n '/project' build.sh` that no other absolute-path reference to the old mount point remains.
+
+- [ ] **Step 2: Drop the toolchain-file flag from `configure`**
 
 Change:
 
@@ -381,11 +415,11 @@ to:
 
 `-DARDUINO_BOARD_OPTIONS_FILE` is gone too — `cmake/BoardOptions.cmake` is now just `include()`-d directly by `CMakeLists.txt` (Task 2), not consumed as a special toolchain-file variable.
 
-- [ ] **Step 2: Verify the rest of `build.sh` needs no changes**
+- [ ] **Step 3: Verify the rest of `build.sh` needs no changes**
 
 `build`, `flash`, `monitor`, `test-host`, `build-device-tests`, `flash-device-tests` all reference target names (`upload-WeatherStation`, `DeviceUnitTests`, `upload-DeviceUnitTests`) that still exist under the new scheme (Tasks 2 and 4 preserve those names) — read through the file once after editing to confirm no other reference to the toolchain path remains.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add build.sh
