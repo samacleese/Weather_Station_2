@@ -2,7 +2,6 @@
 // ABOUTME: Flash to Inkplate and monitor serial at 115200 baud for PASS/FAIL results.
 #include <AUnit.h>
 #include <aunit/contrib/gtest.h>
-#include <Arduino.h>
 #include <memory>
 
 #include "display/Kitties.h"
