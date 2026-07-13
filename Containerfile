@@ -38,6 +38,11 @@ RUN git clone --no-tags https://github.com/a9183756-gh/Arduino-CMake-Toolchain.g
     && cd /opt/arduino-cmake-toolchain \
     && git checkout e745a9bed3c3fb83442d55bf05630f31574674f2
 
+# esp32:esp32's platform bundles a large toolchain (500+MB across several tool archives);
+# the default network timeout is too short for it on a slow connection.
+RUN arduino-cli config init \
+    && arduino-cli config set network.connection_timeout 600s
+
 # Pin board support package. esp32:esp32 (Espressif's mainline core) is listed in
 # arduino-cli's default package index, so no board_manager.additional_urls entry is needed.
 # Croduino_Boards:Inkplate was dropped: its board package repo is unmaintained (no release
@@ -52,6 +57,22 @@ COPY cmake/inkplate10-board.txt /tmp/inkplate10-board.txt
 RUN cat /tmp/inkplate10-board.txt \
     >> /root/.arduino15/packages/esp32/hardware/esp32/3.3.10/boards.txt \
     && rm /tmp/inkplate10-board.txt
+
+# esp32:esp32's platform.txt builds some property names by nesting one variable inside
+# another, e.g. compiler.path={tools.{build.tarch}-esp-elf-gcc.path}/bin/, to route per-chip
+# (xtensa vs riscv) toolchains and library sets. Arduino-CMake-Toolchain's property expander
+# only does single-level, non-nested {var} substitution, so it can't resolve these and leaves
+# the literal "{tools.{build.tarch}-esp-elf-gcc.path}" in the compiler path, breaking the
+# build. This project only ever targets classic ESP32 (build.tarch=xtensa, build.mcu=esp32,
+# build.chip_variant={build.mcu}=esp32), so these can be safely flattened to their resolved
+# values for that fixed target.
+RUN PLATFORM_TXT=/root/.arduino15/packages/esp32/hardware/esp32/3.3.10/platform.txt \
+    && sed -i \
+        -e 's/{runtime\.tools\.{build\.chip_variant}-libs\.path}/{runtime.tools.esp32-libs.path}/g' \
+        -e 's/{tools\.{build\.tarch}-esp-elf-gcc\.path}/{tools.xtensa-esp-elf-gcc.path}/g' \
+        -e 's/{tools\.{build\.tarch}-esp-elf-gdb\.path}/{tools.xtensa-esp-elf-gdb.path}/g' \
+        -e 's/{build\.extra_flags\.{build\.mcu}}/{build.extra_flags.esp32}/g' \
+        "$PLATFORM_TXT"
 
 # Pin libraries
 RUN arduino-cli lib install \
