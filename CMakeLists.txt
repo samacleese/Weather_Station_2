@@ -1,8 +1,8 @@
 # CMakeLists.txt
 # ABOUTME: Root CMake build file for the Weather Station firmware.
-# ABOUTME: Uses arduino-cmake-toolchain to target the Inkplate 10 (ESP32).
+# ABOUTME: Drives arduino-cli compile/upload as custom targets; CMake itself only handles codegen.
 cmake_minimum_required(VERSION 3.16)
-project(WeatherStation CXX)
+project(WeatherStation NONE)
 
 if(NOT EXISTS "${CMAKE_SOURCE_DIR}/config.cmake")
     message(FATAL_ERROR "config.cmake not found. Copy config.cmake.example to config.cmake and fill in your values.")
@@ -10,54 +10,37 @@ endif()
 include("${CMAKE_SOURCE_DIR}/config.cmake")
 include(cmake/Layout.cmake)
 include(cmake/Version.cmake)
+include(cmake/BoardOptions.cmake)
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(GENERATED_INCLUDE_DIR "${CMAKE_BINARY_DIR}/generated")
+file(MAKE_DIRECTORY ${GENERATED_INCLUDE_DIR}/weather_station_2)
+configure_file(src/user_settings.h.in ${GENERATED_INCLUDE_DIR}/weather_station_2/user_settings.h)
 
 # ── Firmware target ───────────────────────────────────────────────────────────
-add_executable(WeatherStation
-    Weather_Station_2.cpp
-    src/display/BatteryMeter.cpp
-    src/display/DisplayLocations.cpp
-    src/display/InkplateBatteryReader.cpp
-    src/display/Kitties.cpp
-    src/display/KittyPics.cpp
-    src/network/BatteryLogger.cpp
-    src/network/CurrentConditions.cpp
-    src/network/Network.cpp
-    src/security/CACerts.cpp
+set(WEATHER_STATION_BUILD_DIR "${CMAKE_BINARY_DIR}/WeatherStation")
+
+add_custom_target(WeatherStation ALL
+    COMMAND arduino-cli compile
+        --fqbn ${INKPLATE10_FQBN}
+        --board-options ${INKPLATE10_BOARD_OPTIONS}
+        --build-property "compiler.cpp.extra_flags=-I${GENERATED_INCLUDE_DIR}"
+        --build-property "compiler.c.extra_flags=-I${GENERATED_INCLUDE_DIR}"
+        --build-path ${WEATHER_STATION_BUILD_DIR}
+        ${CMAKE_SOURCE_DIR}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Compiling WeatherStation firmware via arduino-cli"
+    VERBATIM
 )
 
-file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/generated/weather_station_2)
-configure_file(src/user_settings.h.in ${CMAKE_BINARY_DIR}/generated/weather_station_2/user_settings.h)
-target_include_directories(WeatherStation PRIVATE src ${CMAKE_BINARY_DIR}/generated)
-
-# LCBUrl declares architectures=avr,esp32 but this platform identifies as arch "Inkplate".
-# Set path explicitly to bypass arduino-cmake-toolchain's architecture filter.
-if(NOT ARDUINO_LIB_LCBUrl_PATH)
-    set(ARDUINO_LIB_LCBUrl_PATH "$ENV{HOME}/Arduino/libraries/LCBUrl" CACHE PATH
-        "Path to LCBUrl library (set explicitly to bypass arch filter)")
-endif()
-
-# ── Arduino libraries ─────────────────────────────────────────────────────────
-target_link_arduino_libraries(WeatherStation PRIVATE
-    core
-    Inkplate
-    ArduinoJson
-    ArduinoLog
-    LCBUrl
-)
-
-target_enable_arduino_upload(WeatherStation)
-
-# ── Partition table (huge_app) ────────────────────────────────────────────────
-# file(COPY ... RENAME) is not available in CMake 3.16; use two-step copy+rename.
-file(COPY
-    "${ARDUINO_BOARD_RUNTIME_PLATFORM_PATH}/tools/partitions/huge_app.csv"
-    DESTINATION "${CMAKE_BINARY_DIR}"
-)
-file(RENAME
-    "${CMAKE_BINARY_DIR}/huge_app.csv"
-    "${CMAKE_BINARY_DIR}/partitions.csv"
+add_custom_target(upload-WeatherStation
+    COMMAND arduino-cli upload
+        -p $ENV{SERIAL_PORT}
+        -b ${INKPLATE10_FQBN}
+        --input-dir ${WEATHER_STATION_BUILD_DIR}
+        ${CMAKE_SOURCE_DIR}
+    DEPENDS WeatherStation
+    COMMENT "Uploading WeatherStation firmware"
+    VERBATIM
 )
 
 # ── Test sketches ─────────────────────────────────────────────────────────────
