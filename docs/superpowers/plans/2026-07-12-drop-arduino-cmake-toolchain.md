@@ -10,6 +10,17 @@
 
 ---
 
+## Errata (found empirically during execution — read before implementing Tasks 4, 5, 9)
+
+Two bugs in this plan's original text were caught during execution and corrected below. Both are documented here so anyone reading this plan later (or re-running it) doesn't reintroduce them.
+
+1. **`$ENV{SERIAL_PORT}` in upload targets is wrong.** Every `upload-<name>` custom target's original text used `-p $ENV{SERIAL_PORT}` directly in the `COMMAND` list. `$ENV{...}` is CMake-language substitution, resolved at `cmake` *configure* time, not at `cmake --build`/execution time — so a user setting `SERIAL_PORT` differently at flash time would be silently ignored. **Fix:** route the port through a shell instead, so it's resolved at execution time: `COMMAND sh -c "arduino-cli upload -p \"$SERIAL_PORT\" -b ${FQBN_VAR} --input-dir ${BUILD_DIR_VAR} ${SKETCH_DIR_VAR}"`. This is already corrected in Task 2's `upload-WeatherStation` (see commit history) and in the Task 3/4 text below.
+
+2. **arduino-cli requires a sketch's containing directory basename to exactly match its primary `.ino` file's basename** — not just "the primary file must be `.ino`," which is how the rest of this document originally described it. Confirmed by direct, repeatable reproduction: `arduino-cli compile <dir>` always looks for `<dir>/<basename of dir>.ino`, regardless of what other files exist inside. This broke two things the original plan text got wrong:
+   - `tests/calibration/GrayscaleCalibration.ino` (directory `calibration` ≠ file `GrayscaleCalibration`) — **fixed by renaming the directory itself**: `tests/calibration/` → `tests/GrayscaleCalibration/`, with `tests/CMakeLists.txt`'s `add_subdirectory(calibration)` updated to `add_subdirectory(GrayscaleCalibration)`.
+   - `tests/device/unit/DeviceUnitTests.ino` has the identical problem (directory `unit` ≠ file `DeviceUnitTests`) — Task 4 below is corrected to rename `tests/device/unit/` → `tests/device/DeviceUnitTests/` instead, with `tests/device/CMakeLists.txt`'s `add_subdirectory(unit)` updated accordingly.
+   - **This also affects `WeatherStation` itself**, but not via a source-tree rename: `build.sh`'s container invocation always mounts the repo at a fixed path `/project` inside the container (see `run_in_container()`), so arduino-cli always looks for `/project/project.ino` — which never exists, since the real file is `Weather_Station_2.ino`. Task 5 below is corrected to change the container mount point to a path whose basename is `Weather_Station_2` instead of the fixed `/project`.
+
 ## Context: what's already done (issue #27)
 
 These are already committed on this branch and unaffected by this plan:
@@ -266,19 +277,28 @@ EOF
 
 ## Task 4: Rewrite `tests/device/unit/` (`DeviceUnitTests`)
 
-**Files:**
-- Rename: `tests/device/unit/DeviceUnitTests.cpp` → `tests/device/unit/DeviceUnitTests.ino`
-- Modify: `tests/device/unit/CMakeLists.txt`
+**Corrected per Errata above: the directory is renamed, not just the file** — arduino-cli requires the containing directory's basename to match the `.ino` file's basename, and `unit` ≠ `DeviceUnitTests`.
 
-- [ ] **Step 1: Rename and strip the manual Arduino.h include**
+**Files:**
+- Rename: `tests/device/unit/` → `tests/device/DeviceUnitTests/` (directory, carrying both files with it)
+- Rename: `tests/device/DeviceUnitTests/DeviceUnitTests.cpp` → `tests/device/DeviceUnitTests/DeviceUnitTests.ino`
+- Modify: `tests/device/DeviceUnitTests/CMakeLists.txt`
+- Modify: `tests/device/CMakeLists.txt` (the parent — its `add_subdirectory(unit)` must become `add_subdirectory(DeviceUnitTests)`)
+
+- [ ] **Step 1: Rename the directory, then the file, then strip the manual Arduino.h include**
 
 ```bash
-git mv tests/device/unit/DeviceUnitTests.cpp tests/device/unit/DeviceUnitTests.ino
+git mv tests/device/unit tests/device/DeviceUnitTests
+git mv tests/device/DeviceUnitTests/DeviceUnitTests.cpp tests/device/DeviceUnitTests/DeviceUnitTests.ino
 ```
 
 Remove `#include <Arduino.h>` from the top of the file.
 
-- [ ] **Step 2: Rewrite `tests/device/unit/CMakeLists.txt`**
+- [ ] **Step 2: Update the parent `tests/device/CMakeLists.txt`**
+
+Change its `add_subdirectory(unit)` to `add_subdirectory(DeviceUnitTests)`.
+
+- [ ] **Step 3: Rewrite `tests/device/DeviceUnitTests/CMakeLists.txt`**
 
 ```cmake
 # CMakeLists.txt
@@ -300,27 +320,29 @@ add_custom_target(DeviceUnitTests
 )
 
 add_custom_target(upload-DeviceUnitTests
-    COMMAND arduino-cli upload
-        -p $ENV{SERIAL_PORT}
-        -b ${INKPLATE10_FQBN}
-        --input-dir ${DEVICE_TESTS_BUILD_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMAND sh -c "arduino-cli upload -p \"$SERIAL_PORT\" -b ${INKPLATE10_FQBN} --input-dir ${DEVICE_TESTS_BUILD_DIR} ${CMAKE_CURRENT_SOURCE_DIR}"
     DEPENDS DeviceUnitTests
     COMMENT "Uploading DeviceUnitTests"
     VERBATIM
 )
 ```
 
+(Note the `upload-DeviceUnitTests` target already uses the corrected `sh -c "... \"$SERIAL_PORT\" ..."` pattern from the Errata section, not raw `$ENV{SERIAL_PORT}`.)
+
 Notes:
 - `DeviceUnitTests` is deliberately **not** added to the `ALL` target (matches today's behavior — `build.sh build-device-tests` builds it explicitly via `cmake --build build --target DeviceUnitTests`, it's not part of the default `WeatherStation`-only build).
 - `DeviceUnitTests.ino` includes project headers like `"display/Kitties.h"` and `"network/CurrentConditions.h"` using paths relative to `src/` (see current file), so `-I${CMAKE_SOURCE_DIR}/src` is needed here in addition to the generated-headers path — unlike `GrayscaleCalibration`, which doesn't reach into `src/`.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-git add tests/device/unit/DeviceUnitTests.ino tests/device/unit/CMakeLists.txt
+git add tests/device/CMakeLists.txt tests/device/DeviceUnitTests/DeviceUnitTests.ino tests/device/DeviceUnitTests/CMakeLists.txt
 git commit -m "$(cat <<'EOF'
 refactor: drive DeviceUnitTests build via arduino-cli compile
+
+Also renames tests/device/unit/ to tests/device/DeviceUnitTests/,
+since arduino-cli requires a sketch's containing directory basename to
+match its primary .ino file's basename.
 
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 EOF
