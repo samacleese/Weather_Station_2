@@ -13,7 +13,7 @@ set(DEVICE_TESTS_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/DeviceUnitTests")
 add_custom_target(DeviceUnitTests
     COMMAND arduino-cli compile
         --fqbn ${INKPLATE10_FQBN}
-        --board-options "PSRAM=enabled,PartitionScheme=default,CPUFreq=240"
+        --board-options "${INKPLATE10_COMMON_BOARD_OPTIONS},PartitionScheme=default"
         --build-property "compiler.cpp.extra_flags=-I${CMAKE_SOURCE_DIR}/src -I${GENERATED_INCLUDE_DIR}"
         --build-property "compiler.c.extra_flags=-I${CMAKE_SOURCE_DIR}/src -I${GENERATED_INCLUDE_DIR}"
         --build-path ${DEVICE_TESTS_BUILD_DIR}

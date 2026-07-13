@@ -22,7 +22,7 @@ set(WEATHER_STATION_BUILD_DIR "${CMAKE_BINARY_DIR}/WeatherStation")
 add_custom_target(WeatherStation ALL
     COMMAND arduino-cli compile
         --fqbn ${INKPLATE10_FQBN}
-        --board-options ${INKPLATE10_BOARD_OPTIONS}
+        --board-options "${INKPLATE10_COMMON_BOARD_OPTIONS},PartitionScheme=huge_app"
         --build-property "compiler.cpp.extra_flags=-I${GENERATED_INCLUDE_DIR}"
         --build-property "compiler.c.extra_flags=-I${GENERATED_INCLUDE_DIR}"
         --build-path ${WEATHER_STATION_BUILD_DIR}
