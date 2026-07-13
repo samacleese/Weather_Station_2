@@ -21,12 +21,16 @@ RUN curl -fsSL \
     "https://github.com/arduino/arduino-cli/releases/download/v1.3.1/arduino-cli_1.3.1_Linux_64bit.tar.gz" \
     | tar -xz -C /usr/local/bin arduino-cli
 
-# Stub Arduino IDE installation required by Arduino-CMake-Toolchain to locate packages.
-# The toolchain only checks for lib/version.txt; all actual tooling comes from ~/.arduino15.
+# Stub Arduino IDE installation (lib/version.txt). Left over from the removed
+# Arduino-CMake-Toolchain, which checked for this file. Whether arduino-cli itself still
+# needs it hasn't been re-verified since the toolchain's removal -- don't assume either way.
 RUN mkdir -p /opt/arduino/lib && echo "1.8.16" > /opt/arduino/lib/version.txt
 
-# Stub preferences.txt so Arduino-CMake-Toolchain discovers the sketchbook path
-# (and thus ~/Arduino/libraries where arduino-cli installs user libraries).
+# Stub preferences.txt setting sketchbook.path=/root/Arduino. Left over from the removed
+# Arduino-CMake-Toolchain, which read this file to discover the sketchbook path (and thus
+# ~/Arduino/libraries where arduino-cli installs user libraries). Whether arduino-cli itself
+# still needs it hasn't been re-verified since the toolchain's removal -- don't assume either
+# way.
 RUN mkdir -p /root/.arduino15 \
     && echo "sketchbook.path=/root/Arduino" > /root/.arduino15/preferences.txt
 
