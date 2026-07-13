@@ -1,6 +1,13 @@
 # CMakeLists.txt
 # ABOUTME: Build target for device unit tests using AUnit and the gtest adapter.
 # ABOUTME: Flash and monitor serial output at 115200 baud for PASS/FAIL results.
+#
+# The -I flags below only make src/ headers visible; arduino-cli's sketch convention
+# only auto-compiles .cpp files under the sketch's own directory or its local src/
+# subfolder. DeviceUnitTests.ino calls into Kitties, KittyPics, CurrentConditions,
+# Network, and CACerts, so tests/device/DeviceUnitTests/src/ mirrors the real src/
+# subtree with symlinks (not copies) to those five .cpp files and their headers, so
+# arduino-cli picks them up and they stay in sync with the real files.
 set(DEVICE_TESTS_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/DeviceUnitTests")
 
 add_custom_target(DeviceUnitTests
