@@ -22,9 +22,9 @@ enum NetworkError {
     NETWORK_CERT_ERROR = -5,
 };
 
-class Network : public IHttpClient {
+class WeatherNetwork : public IHttpClient {
    public:
-    Network(const char* ssid, const char* password);
+    WeatherNetwork(const char* ssid, const char* password);
     void begin();
     void syncTime();
 

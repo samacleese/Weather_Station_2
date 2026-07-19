@@ -9,13 +9,12 @@
 # subtree with symlinks (not copies) to those five .cpp files and their headers, so
 # arduino-cli picks them up and they stay in sync with the real files.
 #
-# As of this writing, this target still fails to link — but during compilation of
-# Kitties.cpp (via KittyPics.h -> Inkplate.h), not on the AUnit/DeviceUnitTests.ino
-# side. It hits the same pre-existing InkplateLibrary@10.2.2 bug that blocks
-# WeatherStation itself (an invalid extended character in the vendored
-# Adafruit_GFX.h, plus a missing HTTPClient.h) — unrelated to this file, tracked
-# separately. This comment exists because a build failure here can otherwise read
-# as if the symlink fix didn't work; it did, this is a different, older bug.
+# As of this writing, this target still fails to compile — but on the AUnit side,
+# not while compiling Kitties.cpp/InkplateLibrary. AUnit 1.7.1's TEST macro expands
+# to a class named test_<name>, which collides with std::atomic_flag::test() in the
+# pinned toolchain's newer libstdc++ 14.2.0. Pre-existing, unrelated to this file's
+# symlink structure, tracked separately (issue #28's InkplateLibrary compat patches
+# fixed the Kitties.cpp/Inkplate.h side of things; this is a different library).
 set(DEVICE_TESTS_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/DeviceUnitTests")
 
 add_custom_target(DeviceUnitTests

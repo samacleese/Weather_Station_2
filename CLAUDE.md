@@ -22,6 +22,18 @@ A `Containerfile` at the repo root provides a fully pinned build environment (se
 cp config.cmake .worktrees/<branch-name>/config.cmake
 ```
 
+InkplateLibrary is vendored as a git submodule at `libraries/InkplateLibrary`, pinned to the
+`esp32-core-compat` branch of `samacleese/Inkplate-Arduino-library` (a fork of
+`SolderedElectronics/Inkplate-Arduino-library`, based on the 10.2.2 release). It's passed to
+`arduino-cli compile` via `--library`, not installed through `arduino-cli lib install` like the
+project's other libraries. The fork branch carries patches needed for InkplateLibrary 10.2.2 to
+compile against the `esp32:esp32` core (see commit history on that branch) — update the submodule
+pin (`git -C libraries/InkplateLibrary checkout <ref> && git add libraries/InkplateLibrary`)
+rather than patching the vendored copy in place.
+
+`git submodule update --init` after cloning, or when switching to a worktree that doesn't have it
+checked out yet.
+
 ```bash
 # All build operations are wrapped by build.sh (auto-detects podman vs docker):
 ./build.sh configure           # cmake configure (once, or when CMakeLists.txt changes)

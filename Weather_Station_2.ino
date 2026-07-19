@@ -47,7 +47,7 @@ char buffer[256];
 
 void setup() {
     InkplateBatteryReader batteryReader(display);
-    auto network = std::make_shared<Network>(WIFI_SSID, WIFI_PASSWORD);
+    auto network = std::make_shared<WeatherNetwork>(WIFI_SSID, WIFI_PASSWORD);
     rtc_get_reset_reason(0);
     DisplayLocation kitties(850, 50, 300, 300);
     Serial.begin(115200);
