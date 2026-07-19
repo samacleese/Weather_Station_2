@@ -31,8 +31,8 @@ compile against the `esp32:esp32` core (see commit history on that branch) — u
 pin (`git -C libraries/InkplateLibrary checkout <ref> && git add libraries/InkplateLibrary`)
 rather than patching the vendored copy in place.
 
-`git submodule update --init` after cloning, or when switching to a worktree that doesn't have it
-checked out yet.
+`./build.sh configure` auto-initializes the submodule if it's missing, so a fresh clone or
+worktree doesn't need a manual `git submodule update --init` step first.
 
 ```bash
 # All build operations are wrapped by build.sh (auto-detects podman vs docker):
