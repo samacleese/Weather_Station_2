@@ -8,6 +8,21 @@ if(NOT EXISTS "${CMAKE_SOURCE_DIR}/config.cmake")
     message(FATAL_ERROR "config.cmake not found. Copy config.cmake.example to config.cmake and fill in your values.")
 endif()
 include("${CMAKE_SOURCE_DIR}/config.cmake")
+
+# libraries/InkplateLibrary is a git submodule; a plain clone/pull leaves it registered but
+# empty until explicitly initialized. Do that automatically so a fresh checkout builds without
+# needing to know about the submodule ahead of time.
+if(NOT EXISTS "${CMAKE_SOURCE_DIR}/libraries/InkplateLibrary/library.properties")
+    find_package(Git REQUIRED)
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive -- libraries/InkplateLibrary
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        RESULT_VARIABLE GIT_SUBMODULE_RESULT
+    )
+    if(NOT GIT_SUBMODULE_RESULT EQUAL 0)
+        message(FATAL_ERROR "Failed to checkout libraries/InkplateLibrary submodule.")
+    endif()
+endif()
 include(cmake/Layout.cmake)
 include(cmake/Version.cmake)
 include(cmake/BoardOptions.cmake)
