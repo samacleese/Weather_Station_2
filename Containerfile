@@ -54,11 +54,12 @@ RUN cat /tmp/inkplate10-board.txt \
     >> /root/.arduino15/packages/esp32/hardware/esp32/3.3.10/boards.txt \
     && rm /tmp/inkplate10-board.txt
 
-# Pin libraries
+# Pin libraries. InkplateLibrary is not installed here -- it's vendored as a git
+# submodule at libraries/InkplateLibrary (a fork with esp32:esp32 compatibility
+# patches applied) and passed to arduino-cli compile via --library.
 RUN arduino-cli lib install \
     "ArduinoJson@6.18.5" \
     "ArduinoLog@1.1.1" \
-    "InkplateLibrary@10.2.2" \
     "LCBUrl@1.1.4" \
     "AUnit@1.7.1"
 
