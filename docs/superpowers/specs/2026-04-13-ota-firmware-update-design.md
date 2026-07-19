@@ -105,18 +105,29 @@ spiffs,   data, spiffs, 0x290000, 0x170000   # 1.4375MB for assets
 
 **Note:** The partition table change, Phase 0 LittleFS image, and updated firmware all ship together in the same USB flash event. The new partition does not exist until this flash is performed; `AssetLoader` end-to-end integration testing happens after this flash.
 
-**eeprom partition (must be resolved before starting Phase 1 work):** The current `huge_app` layout includes an `eeprom` partition at `0x310000` used by the Inkplate library for waveform storage (source of the boot warning "Waveform load failed! Upload new waveform in EEPROM"). The new layout drops the named `eeprom` partition. Investigate whether the Inkplate library requires the named partition or uses ESP-IDF's NVS-backed EEPROM emulation before writing any Phase 1 code. If it requires the named partition, add it back (at the cost of some LittleFS space). Do not defer this to flash time — it needs to be resolved during Phase 1 design so the partition table is correct before anyone touches a USB cable.
+**eeprom partition (resolved 2026-07-19):** This was originally an open blocker — investigate whether the Inkplate library needs a named `eeprom` partition before dropping it. It's now resolved: under the current `esp32:esp32` core, the stock `huge_app.csv` (`nvs`, `otadata`, `app0`, `spiffs`, `coredump`) already has **no** `eeprom` partition. InkplateLibrary's `EEPROM.begin(512)` call (`Inkplate10.cpp:44`) resolves to Arduino-ESP32's `EEPROM.h`, which calls `esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, "eeprom")` — with no such partition present, this lookup fails, which is the actual source of the "Waveform load failed! Upload new waveform in EEPROM" boot warning `CLAUDE.md` already documents as expected/harmless. Since the device already runs fine today without a named `eeprom` partition (falling back to the default waveform), `ota_partitions.csv` does not need to carve out space for one.
 
 ### Build System Changes
 
+**Note:** This section was rewritten 2026-07-19 to match the build system after the arduino-cli-driven build refactor and the `esp32:esp32` core migration (issue #27), both of which landed after this spec's original approval. The build no longer copies a partition CSV into a hardware package directory or toggles a CMake-level define; partition scheme selection is an arduino-cli `--board-options` value, and the set of selectable schemes is defined in a custom board file layered onto the `esp32:esp32` core.
+
+**`cmake/inkplate10-board.txt`:**
+- This file (documented in `CLAUDE.md`) is a hand-derived board definition appended to the installed `esp32:esp32` core's `boards.txt` by the `Containerfile`. Its `Inkplate10.menu.PartitionScheme.*` entries currently only cover the core's stock schemes (`default`, `minimal`, `no_ota`, `huge_app`, `min_spiffs`, `fatflash`).
+- Add a new entry, e.g.:
+  ```
+  Inkplate10.menu.PartitionScheme.ota=OTA (dual 1.25MB APP/1.4375MB SPIFFS)
+  Inkplate10.menu.PartitionScheme.ota.build.partitions=ota_partitions
+  Inkplate10.menu.PartitionScheme.ota.upload.maximum_size=1310720
+  ```
+  `build.partitions=ota_partitions` must match the basename (without `.csv`) of the partition table file arduino-cli resolves from the core's `tools/partitions/` directory.
+
+**`Containerfile`:**
+- Alongside the existing step that copies `cmake/inkplate10-board.txt` into the core's `boards.txt` (see `CLAUDE.md`), add a step copying `cmake/ota_partitions.csv` into `/root/.arduino15/packages/esp32/hardware/esp32/<version>/tools/partitions/ota_partitions.csv` so arduino-cli can find it by the `build.partitions` name above.
+
 **`CMakeLists.txt`:**
-- Replace `huge_app.csv` copy block with `ota_partitions.csv`
+- In the `WeatherStation` target, change the `--board-options` string from `"${INKPLATE10_COMMON_BOARD_OPTIONS},PartitionScheme=huge_app"` to `"${INKPLATE10_COMMON_BOARD_OPTIONS},PartitionScheme=ota"`
 - Read `VERSION` file and inject as `FIRMWARE_VERSION` compile-time define
 - Add `OTAManager.cpp`, `AssetLoader.cpp` to sources
-
-**`cmake/BoardOptions.cmake`:**
-- Disable `ARDUINO_INKPLATE_INKPLATE10_MENU_PARTITIONSCHEME_HUGE_APP`
-- Enable custom partition scheme
 
 ---
 
@@ -369,8 +380,9 @@ if (ota.checkForUpdate(OTA_MANIFEST_URL, info)) {
 
 | File | Change |
 |---|---|
-| `CMakeLists.txt` | Use `ota_partitions.csv`; inject `VERSION` as `FIRMWARE_VERSION`; add new sources |
-| `cmake/BoardOptions.cmake` | Disable `HUGE_APP`, enable custom partition scheme |
+| `CMakeLists.txt` | Switch `WeatherStation` target's `--board-options` from `PartitionScheme=huge_app` to `PartitionScheme=ota`; inject `VERSION` as `FIRMWARE_VERSION`; add new sources |
+| `cmake/inkplate10-board.txt` | Add `Inkplate10.menu.PartitionScheme.ota` entry pointing `build.partitions` at `ota_partitions` |
+| `Containerfile` | Add a step copying `cmake/ota_partitions.csv` into the installed `esp32:esp32` core's `tools/partitions/` directory, alongside the existing `inkplate10-board.txt` → `boards.txt` append |
 | `Weather_Station_2.cpp` | Add OTA check block; load assets via `AssetLoader`; add `#include <inttypes.h>` for `PRIu64`; define `OTA_MANIFEST_URL` |
 | `src/display/KittyPics.h/.cpp` | Remove large PROGMEM arrays (replaced by LittleFS files) |
 | `assets/fonts/Roboto_Light.h`, `Roboto_Medium.h` | Remove large PROGMEM font sizes (replaced by LittleFS files) |
