@@ -23,8 +23,8 @@ run_in_container() {
     local cmd="${*: -1}"
     local -a extra=("${@:1:$#-1}")
     "$RUNNER" run --rm "${extra[@]}" \
-        -v "$(pwd):/project${SELINUX_LABEL}" \
-        -w /project \
+        -v "$(pwd):/build/Weather_Station_2${SELINUX_LABEL}" \
+        -w /build/Weather_Station_2 \
         "$IMAGE" \
         bash -c "$cmd"
 }
@@ -53,12 +53,7 @@ EOF
 
 case "${1:-}" in
     configure)
-        run_in_container \
-            "cmake \
-              -DCMAKE_TOOLCHAIN_FILE=/opt/arduino-cmake-toolchain/Arduino-toolchain.cmake \
-              -DARDUINO_BOARD_OPTIONS_FILE=cmake/BoardOptions.cmake \
-              -B build \
-              -G Ninja"
+        run_in_container "cmake -B build -G Ninja"
         ;;
     build)
         run_in_container "cmake --build build"

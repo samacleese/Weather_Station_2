@@ -21,47 +21,51 @@ RUN curl -fsSL \
     "https://github.com/arduino/arduino-cli/releases/download/v1.3.1/arduino-cli_1.3.1_Linux_64bit.tar.gz" \
     | tar -xz -C /usr/local/bin arduino-cli
 
-# Stub Arduino IDE installation required by Arduino-CMake-Toolchain to locate packages.
-# The toolchain only checks for lib/version.txt; all actual tooling comes from ~/.arduino15.
+# Stub Arduino IDE installation (lib/version.txt). Left over from the removed
+# Arduino-CMake-Toolchain, which checked for this file. Whether arduino-cli itself still
+# needs it hasn't been re-verified since the toolchain's removal -- don't assume either way.
 RUN mkdir -p /opt/arduino/lib && echo "1.8.16" > /opt/arduino/lib/version.txt
 
-# Stub preferences.txt so Arduino-CMake-Toolchain discovers the sketchbook path
-# (and thus ~/Arduino/libraries where arduino-cli installs user libraries).
+# Stub preferences.txt setting sketchbook.path=/root/Arduino. Left over from the removed
+# Arduino-CMake-Toolchain, which read this file to discover the sketchbook path (and thus
+# ~/Arduino/libraries where arduino-cli installs user libraries). Whether arduino-cli itself
+# still needs it hasn't been re-verified since the toolchain's removal -- don't assume either
+# way.
 RUN mkdir -p /root/.arduino15 \
     && echo "sketchbook.path=/root/Arduino" > /root/.arduino15/preferences.txt
 
-# Pin Arduino-CMake-Toolchain at the commit previously tracked as a submodule.
-# This repo has no release tags, so a commit hash is the only stable pin.
-# --no-tags suppresses tag fetching for a leaner clone.
-RUN git clone --no-tags https://github.com/a9183756-gh/Arduino-CMake-Toolchain.git \
-        /opt/arduino-cmake-toolchain \
-    && cd /opt/arduino-cmake-toolchain \
-    && git checkout e745a9bed3c3fb83442d55bf05630f31574674f2
+# esp32:esp32's platform bundles a large toolchain (500+MB across several tool archives);
+# the default network timeout is too short for it on a slow connection.
+RUN arduino-cli config init \
+    && arduino-cli config set network.connection_timeout 600s
 
-# Pin board support package
-RUN arduino-cli config add board_manager.additional_urls \
-        https://github.com/SolderedElectronics/Croduino-Board-Definitions-for-Arduino-IDE/raw/master/package_Croduino_Boards_index.json \
-    && arduino-cli core update-index \
-    && arduino-cli core install Croduino_Boards:Inkplate@1.0.1
+# Pin board support package. esp32:esp32 (Espressif's mainline core) is listed in
+# arduino-cli's default package index, so no board_manager.additional_urls entry is needed.
+# Croduino_Boards:Inkplate was dropped: its board package repo is unmaintained (no release
+# since 2022) and only ever bundled ESP32 Arduino 1.0.5-rc2, too old for current
+# InkplateLibrary releases (see cmake/inkplate10-board.txt for the custom board this adds).
+RUN arduino-cli core update-index \
+    && arduino-cli core install esp32:esp32@3.3.10
 
-# Pin libraries
+# Register the Inkplate 10 as a board under esp32:esp32 (see cmake/inkplate10-board.txt for
+# what this defines and why).
+COPY cmake/inkplate10-board.txt /tmp/inkplate10-board.txt
+RUN cat /tmp/inkplate10-board.txt \
+    >> /root/.arduino15/packages/esp32/hardware/esp32/3.3.10/boards.txt \
+    && rm /tmp/inkplate10-board.txt
+
+# Pin libraries. InkplateLibrary is not installed here -- it's vendored as a git
+# submodule at libraries/InkplateLibrary (a fork with esp32:esp32 compatibility
+# patches applied) and passed to arduino-cli compile via --library.
 RUN arduino-cli lib install \
     "ArduinoJson@6.18.5" \
     "ArduinoLog@1.1.1" \
-    "InkplateLibrary@10.2.2" \
     "LCBUrl@1.1.4" \
     "AUnit@1.7.1"
-
-# InkplateLibrary 10.2.2 calls WiFiClientSecure::setInsecure(), which does not exist in
-# the ESP32 Arduino 1.0.5-rc2 core bundled with Croduino_Boards:Inkplate@1.0.1.
-# setInsecure() was added in ESP32 Arduino 1.0.6; this patch keeps compilation working
-# against the pinned board core.
-RUN sed -i 's/^\( *\)client->setInsecure(); \/\/ Use HTTPS/\1\/\/ client->setInsecure(); \/\/ Use HTTPS/' \
-    /root/Arduino/libraries/InkplateLibrary/src/include/NetworkClient.cpp
 
 # Python tooling: image codegen (tools/image_converter.py) and esptool (board package).
 # --break-system-packages is required on Ubuntu 24.04, which ships with PEP 668
 # EXTERNALLY-MANAGED protection even inside a container.
-# pyserial is required by esptool.py (bundled in Croduino_Boards:Inkplate@1.0.1) to
-# generate the .bin from the compiled .elf.
+# pyserial is required by esptool.py (bundled in esp32:esp32) to generate the .bin from the
+# compiled .elf.
 RUN pip3 install --no-cache-dir --break-system-packages Pillow numpy pyserial

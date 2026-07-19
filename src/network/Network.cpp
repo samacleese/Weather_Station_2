@@ -8,7 +8,7 @@
 
 #include "../security/CACerts.h"
 
-Network::Network(const char* ssid, const char* password) {
+WeatherNetwork::WeatherNetwork(const char* ssid, const char* password) {
     strncpy(m_ssid, ssid, sizeof(m_ssid));
     m_ssid[sizeof(m_ssid) - 1] = '\0';
 
@@ -16,7 +16,7 @@ Network::Network(const char* ssid, const char* password) {
     m_password[sizeof(m_password) - 1] = '\0';
 }
 
-void Network::begin() {
+void WeatherNetwork::begin() {
     WiFi.mode(WIFI_STA);
     WiFi.begin(m_ssid, m_password);
 
@@ -38,7 +38,7 @@ void Network::begin() {
     this->syncTime();
 }
 
-void Network::syncTime() {
+void WeatherNetwork::syncTime() {
     // Used for setting correct time
     configTime(0, 0, "pool.ntp.org", "time.nist.gov");
 
@@ -59,7 +59,7 @@ void Network::syncTime() {
     Log.notice(F("Current time: %s" CR), asctime(&timeinfo));
 }
 
-int Network::get(WiFiClientSecure& client, const String& url, StreamString& stream, int retries, int timeout) {
+int WeatherNetwork::get(WiFiClientSecure& client, const String& url, StreamString& stream, int retries, int timeout) {
     HTTPClient https;
     int attempt = 0;
     int httpCode = 0;
@@ -136,7 +136,7 @@ int Network::get(WiFiClientSecure& client, const String& url, StreamString& stre
     }
 }
 
-bool Network::reconnect(int maxAttempts) {
+bool WeatherNetwork::reconnect(int maxAttempts) {
     // If not connected to wifi reconnect wifi
     if (WiFi.status() != WL_CONNECTED) {
         WiFi.reconnect();
@@ -162,7 +162,7 @@ bool Network::reconnect(int maxAttempts) {
     return true;
 }
 
-bool Network::isCertError(WiFiClientSecure& client) {
+bool WeatherNetwork::isCertError(WiFiClientSecure& client) {
     // SSL failures surface as httpCode=-1 after cert validation fails.
     // lastError() returns non-zero for both chain verification failures
     // (MBEDTLS_ERR_X509_CERT_VERIFY_FAILED = -9984) and format errors
@@ -176,7 +176,7 @@ bool Network::isCertError(WiFiClientSecure& client) {
     return false;
 }
 
-int Network::get(const std::string& url, std::string& body) {
+int WeatherNetwork::get(const std::string& url, std::string& body) {
     WiFiClientSecure client;
     StreamString stream;
 
@@ -200,7 +200,7 @@ int Network::get(const std::string& url, std::string& body) {
     return result;
 }
 
-const char* Network::getErrorString(int errorCode) {
+const char* WeatherNetwork::getErrorString(int errorCode) {
     switch (errorCode) {
         case NETWORK_OK:
             return "No error";
