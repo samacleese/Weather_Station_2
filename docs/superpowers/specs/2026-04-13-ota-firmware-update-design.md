@@ -109,20 +109,16 @@ spiffs,   data, spiffs, 0x290000, 0x170000   # 1.4375MB for assets
 
 ### Build System Changes
 
-**Note:** This section was rewritten 2026-07-19 to match the build system after the arduino-cli-driven build refactor and the `esp32:esp32` core migration (issue #27), both of which landed after this spec's original approval. The build no longer copies a partition CSV into a hardware package directory or toggles a CMake-level define; partition scheme selection is an arduino-cli `--board-options` value, and the set of selectable schemes is defined in a custom board file layered onto the `esp32:esp32` core.
+**Note:** This section was rewritten 2026-07-19 to match the build system after the arduino-cli-driven build refactor and after moving the board package from mainline `esp32:esp32` (issue #27's original migration) to Soldered's own `soldered-inkplate-boards` package (which ships a native, current Inkplate 10 board — the custom board file the `esp32:esp32` migration required no longer exists). Partition scheme selection is still an arduino-cli `--board-options` value; the set of selectable schemes now comes from `soldered-inkplate-boards`'s own `boards.txt` plus one entry we append onto it.
 
-**`cmake/inkplate10-board.txt`:**
-- This file (documented in `CLAUDE.md`) is a hand-derived board definition appended to the installed `esp32:esp32` core's `boards.txt` by the `Containerfile`. Its `Inkplate10.menu.PartitionScheme.*` entries currently only cover the core's stock schemes (`default`, `minimal`, `no_ota`, `huge_app`, `min_spiffs`, `fatflash`).
-- Add a new entry, e.g.:
+**`Containerfile`:**
+- After the existing `arduino-cli core install soldered-inkplate-boards:esp32@3.0.0` step, append a new `Inkplate10.menu.PartitionScheme.ota` entry to the installed package's `boards.txt` (at `/root/.arduino15/packages/soldered-inkplate-boards/hardware/esp32/3.0.0/boards.txt`) and copy `cmake/ota_partitions.csv` into that version's `tools/partitions/ota_partitions.csv`, e.g.:
   ```
   Inkplate10.menu.PartitionScheme.ota=OTA (dual 1.25MB APP/1.4375MB SPIFFS)
   Inkplate10.menu.PartitionScheme.ota.build.partitions=ota_partitions
   Inkplate10.menu.PartitionScheme.ota.upload.maximum_size=1310720
   ```
-  `build.partitions=ota_partitions` must match the basename (without `.csv`) of the partition table file arduino-cli resolves from the core's `tools/partitions/` directory.
-
-**`Containerfile`:**
-- Alongside the existing step that copies `cmake/inkplate10-board.txt` into the core's `boards.txt` (see `CLAUDE.md`), add a step copying `cmake/ota_partitions.csv` into `/root/.arduino15/packages/esp32/hardware/esp32/<version>/tools/partitions/ota_partitions.csv` so arduino-cli can find it by the `build.partitions` name above.
+  `build.partitions=ota_partitions` must match the basename (without `.csv`) of the partition table file arduino-cli resolves from that `tools/partitions/` directory. Confirm the exact installed-package path and version directory at implementation time (`arduino-cli core list` or check `/root/.arduino15/packages/soldered-inkplate-boards/hardware/esp32/`) rather than assuming the `3.0.0` used here stays current.
 
 **`CMakeLists.txt`:**
 - In the `WeatherStation` target, change the `--board-options` string from `"${INKPLATE10_COMMON_BOARD_OPTIONS},PartitionScheme=huge_app"` to `"${INKPLATE10_COMMON_BOARD_OPTIONS},PartitionScheme=ota"`
@@ -381,8 +377,7 @@ if (ota.checkForUpdate(OTA_MANIFEST_URL, info)) {
 | File | Change |
 |---|---|
 | `CMakeLists.txt` | Switch `WeatherStation` target's `--board-options` from `PartitionScheme=huge_app` to `PartitionScheme=ota`; inject `VERSION` as `FIRMWARE_VERSION`; add new sources |
-| `cmake/inkplate10-board.txt` | Add `Inkplate10.menu.PartitionScheme.ota` entry pointing `build.partitions` at `ota_partitions` |
-| `Containerfile` | Add a step copying `cmake/ota_partitions.csv` into the installed `esp32:esp32` core's `tools/partitions/` directory, alongside the existing `inkplate10-board.txt` → `boards.txt` append |
+| `Containerfile` | Append an `Inkplate10.menu.PartitionScheme.ota` entry to the installed `soldered-inkplate-boards` package's `boards.txt` and copy `cmake/ota_partitions.csv` into that package version's `tools/partitions/` directory |
 | `Weather_Station_2.cpp` | Add OTA check block; load assets via `AssetLoader`; add `#include <inttypes.h>` for `PRIu64`; define `OTA_MANIFEST_URL` |
 | `src/display/KittyPics.h/.cpp` | Remove large PROGMEM arrays (replaced by LittleFS files) |
 | `assets/fonts/Roboto_Light.h`, `Roboto_Medium.h` | Remove large PROGMEM font sizes (replaced by LittleFS files) |

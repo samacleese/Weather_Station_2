@@ -2,7 +2,7 @@
 #define DISPLAY_LOCATIONS_H
 
 #include <stdint.h>
-#include <libs/Adafruit-GFX-Library/gfxfont.h>
+#include <graphics/Adafruit_GFX/gfxfont.h>
 
 #include <map>
 
