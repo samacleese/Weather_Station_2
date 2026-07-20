@@ -34,38 +34,34 @@ RUN mkdir -p /opt/arduino/lib && echo "1.8.16" > /opt/arduino/lib/version.txt
 RUN mkdir -p /root/.arduino15 \
     && echo "sketchbook.path=/root/Arduino" > /root/.arduino15/preferences.txt
 
-# esp32:esp32's platform bundles a large toolchain (500+MB across several tool archives);
+# The board platform bundles a large toolchain (500+MB across several tool archives);
 # the default network timeout is too short for it on a slow connection.
 RUN arduino-cli config init \
     && arduino-cli config set network.connection_timeout 600s
 
-# Pin board support package. esp32:esp32 (Espressif's mainline core) is listed in
-# arduino-cli's default package index, so no board_manager.additional_urls entry is needed.
-# Croduino_Boards:Inkplate was dropped: its board package repo is unmaintained (no release
-# since 2022) and only ever bundled ESP32 Arduino 1.0.5-rc2, too old for current
-# InkplateLibrary releases (see cmake/inkplate10-board.txt for the custom board this adds).
-RUN arduino-cli core update-index \
-    && arduino-cli core install esp32:esp32@3.3.10
+# Pin board support package. Uses Soldered's own board package rather than mainline
+# esp32:esp32: Croduino_Boards:Inkplate (the old package) is unmaintained (no release since
+# 2022) and only ever bundled ESP32 Arduino 1.0.5-rc2, too old for current InkplateLibrary
+# releases, but Soldered's current package (unlike Croduino_Boards) tracks a recent IDF release
+# and ships a native Inkplate 10 board, so no custom board file is needed on top of it.
+# "Inkplate10" (not "Inkplate10V2", a newer PCB revision with a different pinout) matches this
+# project's hardware -- see cmake/BoardOptions.cmake.
+RUN arduino-cli config set board_manager.additional_urls \
+        "https://github.com/SolderedElectronics/Inkplate-Board-Definitions-for-Arduino-IDE/raw/refs/heads/main/package_Inkplate_Boards_index.json" \
+    && arduino-cli core update-index \
+    && arduino-cli core install soldered-inkplate-boards:esp32@3.0.0
 
-# Register the Inkplate 10 as a board under esp32:esp32 (see cmake/inkplate10-board.txt for
-# what this defines and why).
-COPY cmake/inkplate10-board.txt /tmp/inkplate10-board.txt
-RUN cat /tmp/inkplate10-board.txt \
-    >> /root/.arduino15/packages/esp32/hardware/esp32/3.3.10/boards.txt \
-    && rm /tmp/inkplate10-board.txt
-
-# Pin libraries. InkplateLibrary is not installed here -- it's vendored as a git
-# submodule at libraries/InkplateLibrary (a fork with esp32:esp32 compatibility
-# patches applied) and passed to arduino-cli compile via --library.
+# Pin libraries.
 RUN arduino-cli lib install \
     "ArduinoJson@6.18.5" \
     "ArduinoLog@1.1.1" \
     "LCBUrl@1.1.4" \
-    "AUnit@1.7.1"
+    "AUnit@1.7.1" \
+    "InkplateLibrary@11.1.2"
 
 # Python tooling: image codegen (tools/image_converter.py) and esptool (board package).
 # --break-system-packages is required on Ubuntu 24.04, which ships with PEP 668
 # EXTERNALLY-MANAGED protection even inside a container.
-# pyserial is required by esptool.py (bundled in esp32:esp32) to generate the .bin from the
-# compiled .elf.
+# pyserial is required by esptool.py (bundled in the board package) to generate the .bin from
+# the compiled .elf.
 RUN pip3 install --no-cache-dir --break-system-packages Pillow numpy pyserial

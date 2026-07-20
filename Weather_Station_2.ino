@@ -113,7 +113,7 @@ void setup() {
             display.print(buffer);
 
             // Draw kitty for user comfort
-            display.drawBitmap3Bit(850, 50, nextKitty, Kitties::w, Kitties::h);
+            display.image.drawBitmap3Bit(850, 50, nextKitty, Kitties::w, Kitties::h);
 
             // Get and show battery info at least
             int temperature = display.readTemperature();
@@ -185,7 +185,7 @@ void setup() {
     display.print(buffer);
 
     // Draw kitty
-    display.drawBitmap3Bit(LAYOUT_MAIN_KITTY_X, LAYOUT_MAIN_KITTY_Y, nextKitty, Kitties::w, Kitties::h);
+    display.image.drawBitmap3Bit(LAYOUT_MAIN_KITTY_X, LAYOUT_MAIN_KITTY_Y, nextKitty, Kitties::w, Kitties::h);
 
     // Get the temp and battery voltage
     int temperature;

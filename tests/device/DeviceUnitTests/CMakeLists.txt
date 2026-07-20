@@ -13,15 +13,13 @@
 # not while compiling Kitties.cpp/InkplateLibrary. AUnit 1.7.1's TEST macro expands
 # to a class named test_<name>, which collides with std::atomic_flag::test() in the
 # pinned toolchain's newer libstdc++ 14.2.0. Pre-existing, unrelated to this file's
-# symlink structure, tracked separately (issue #28's InkplateLibrary compat patches
-# fixed the Kitties.cpp/Inkplate.h side of things; this is a different library).
+# symlink structure.
 set(DEVICE_TESTS_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/DeviceUnitTests")
 
 add_custom_target(DeviceUnitTests
     COMMAND arduino-cli compile
         --fqbn ${INKPLATE10_FQBN}
         --board-options "${INKPLATE10_COMMON_BOARD_OPTIONS},PartitionScheme=default"
-        --library ${CMAKE_SOURCE_DIR}/libraries/InkplateLibrary
         --build-property "compiler.cpp.extra_flags=-I${CMAKE_SOURCE_DIR}/src -I${GENERATED_INCLUDE_DIR}"
         --build-property "compiler.c.extra_flags=-I${CMAKE_SOURCE_DIR}/src -I${GENERATED_INCLUDE_DIR}"
         --build-path ${DEVICE_TESTS_BUILD_DIR}

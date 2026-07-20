@@ -1,4 +1,0 @@
-[submodule "libraries/InkplateLibrary"]
-	path = libraries/InkplateLibrary
-	url = https://github.com/samacleese/Inkplate-Arduino-library.git
-	branch = esp32-core-compat
