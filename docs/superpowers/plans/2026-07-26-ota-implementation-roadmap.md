@@ -55,6 +55,30 @@ Everything else in the spec stands: the ECDSA P-256 + `Prehashed()` sign/verify 
 `OTA_SIZE_UNKNOWN` in `esp_ota_begin()`, the ESP-IDF native OTA API rather than Arduino `Update`,
 the button-confirm safety requirement, and the local-network threat model.
 
+## Story index
+
+| Story | Issue | Title |
+|---|---|---|
+| A1 | #47 | `VERSION` file and `FIRMWARE_VERSION` constant |
+| A2 | #48 | `OTA_MANIFEST_URL` in config |
+| A3 | #49 | `tools/ota_keygen.py` and embedded public key |
+| A4 | #50 | `tools/ota_publish.py` |
+| A5 | #33 | Pin ArduinoJson host/device *(existing issue)* |
+| B1 | #51 | Dual-OTA partition scheme, verified on hardware |
+| B2 | #52 | Switch firmware target to the OTA scheme |
+| B3 | #53 | Binary size budget check |
+| C1 | #54 | Spike: streaming HTTP download with SHA-256 |
+| C2 | #55 | Spike: ECDSA P-256 verification on device |
+| C3 | #56 | Spike: OTA write to `app1` |
+| C4 | #57 | Spike: GPIO 36 poll during active operation |
+| D1 | #58 | `OTAManager::checkForUpdate` with host tests |
+| D2 | #59 | `OTAManager::performUpdate` |
+| D3 | #60 | Sketch integration and button confirmation |
+| D4 | #61 | End-to-end verification and negative tests |
+| E1 | #39, #20 | Build-time font generation, used sizes only *(existing issues)* |
+| E2 | #14 | Build-time kitty image generation *(existing issue)* |
+| E3 | #62 | LittleFS/PSRAM fallback if E1+E2 insufficient |
+
 ## Track dependencies
 
 ```
