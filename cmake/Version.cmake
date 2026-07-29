@@ -1,6 +1,12 @@
 # ABOUTME: Runs git describe and generates version.h via configure_file.
 # ABOUTME: Parallel to Layout.cmake — include this after config.cmake in CMakeLists.txt.
 
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/VERSION")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/.git/HEAD")
+
+file(READ "${CMAKE_SOURCE_DIR}/VERSION" FIRMWARE_VERSION)
+string(STRIP "${FIRMWARE_VERSION}" FIRMWARE_VERSION)
+
 execute_process(
     COMMAND git describe --always --dirty --abbrev=7
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}

@@ -3,3 +3,4 @@
 #pragma once
 
 #define GIT_VERSION "@GIT_VERSION@"
+#define FIRMWARE_VERSION @FIRMWARE_VERSION@ULL
