@@ -41,6 +41,8 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 #define TIME_TO_SLEEP_S 600
 #define ERROR_TIME_TO_SLEEP_S 300
 
+static const uint64_t COMPILED_VERSION = FIRMWARE_VERSION;
+
 Inkplate display(INKPLATE_3BIT);
 
 char buffer[256];
