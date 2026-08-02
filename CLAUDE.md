@@ -97,7 +97,7 @@ All application logic lives in `setup()` in `Weather_Station_2.ino`. `loop()` is
 - `Weather_Station_2.ino` includes a `std::make_unique` polyfill (lines 12–17) because the ESP32 Arduino core doesn't provide it.
 - `Kitties` uses `RTC_DATA_ATTR` to persist the image rotation counter across deep sleep cycles without hitting flash.
 - `CACerts` is a static `std::map<String, const char*>` mapping hostnames to PEM certs embedded as PROGMEM strings. Used by `Network` to configure `WiFiClientSecure` before each HTTPS request.
-- WiFi credentials and station ID are in `config.cmake` (gitignored; copy from `config.cmake.example`).
+- WiFi credentials and station ID are in `config.cmake` (gitignored; copy from `config.cmake.example`). Deployment-specific URLs — `BATTERY_LOGGER_URL` and `OTA_MANIFEST_URL` — live there too, reaching the firmware via the generated `src/user_settings.h`.
 - Weather station is hardcoded as `KBFI` (Seattle/Boeing Field) in `CurrentConditions.cpp`.
 
 ## Certificate Updates
