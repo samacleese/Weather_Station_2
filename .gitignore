@@ -9,3 +9,5 @@ venv
 build-host/
 .superpowers/
 keys/
+__pycache__/
+.pytest_cache/

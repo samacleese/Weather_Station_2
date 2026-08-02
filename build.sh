@@ -43,6 +43,7 @@ Subcommands:
   flash               Flash firmware to device
   monitor             Open serial monitor
   test-host           Build and run host unit tests
+  test-python         Run pytest against tools/ pure-logic functions
   build-device-tests  Compile DeviceUnitTests sketch
   flash-device-tests  Flash DeviceUnitTests to device
 
@@ -73,6 +74,9 @@ case "${1:-}" in
     test-host)
         run_in_container \
             "cmake -S tests/unit -B build-host -G Ninja && cmake --build build-host && ./build-host/unit_tests"
+        ;;
+    test-python)
+        run_in_container "python3 -m pytest tests/python"
         ;;
     build-device-tests)
         run_in_container "cmake --build build --target DeviceUnitTests"
