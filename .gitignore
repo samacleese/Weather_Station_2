@@ -8,3 +8,4 @@ config.cmake
 venv
 build-host/
 .superpowers/
+keys/

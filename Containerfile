@@ -59,9 +59,10 @@ RUN arduino-cli lib install \
     "AUnit@1.7.1" \
     "InkplateLibrary@11.1.2"
 
-# Python tooling: image codegen (tools/image_converter.py) and esptool (board package).
+# Python tooling dependencies (see requirements.txt): image codegen (tools/image_converter.py),
+# esptool (board package; pyserial is required by esptool.py, bundled in the board package, to
+# generate the .bin from the compiled .elf), and OTA key generation (tools/ota_keygen.py).
 # --break-system-packages is required on Ubuntu 24.04, which ships with PEP 668
 # EXTERNALLY-MANAGED protection even inside a container.
-# pyserial is required by esptool.py (bundled in the board package) to generate the .bin from
-# the compiled .elf.
-RUN pip3 install --no-cache-dir --break-system-packages Pillow numpy pyserial
+COPY requirements.txt /tmp/requirements.txt
+RUN pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.txt
