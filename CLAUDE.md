@@ -37,6 +37,7 @@ hardware is not.
 ./build.sh flash               # flash to /dev/ttyUSB0
 ./build.sh monitor             # open serial monitor
 ./build.sh test-host           # build and run host unit tests
+./build.sh test-python         # run pytest against tools/ pure-logic functions
 ./build.sh build-device-tests  # compile device test sketch
 ./build.sh flash-device-tests  # flash device tests
 
