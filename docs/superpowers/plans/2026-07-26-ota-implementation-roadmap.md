@@ -74,7 +74,7 @@ the button-confirm safety requirement, and the local-network threat model.
 | ✅ | B2 | #52 | Switch firmware target to the OTA scheme |
 | ✅ | B3 | #53 | Binary size budget check |
 | ✅ | C1 | #54 | Spike: streaming HTTP download with SHA-256 |
-| ❌ | C2 | #55 | Spike: ECDSA P-256 verification on device |
+| ✅ | C2 | #55 | Spike: ECDSA P-256 verification on device |
 | ❌ | C3 | #56 | Spike: OTA write to `app1` |
 | ❌ | C4 | #57 | Spike: GPIO 36 poll during active operation |
 | ❌ | D1 | #58 | `OTAManager::checkForUpdate` with host tests |
@@ -220,10 +220,11 @@ plain-HTTP local fetch.
 
 **Success:** hash matches the expected value; completes without OOM or timeout.
 
-**Done 2026-11-01** on hardware with `tests/spikes/OtaDownload/` (`./build.sh build-spike OtaDownload`,
-`./build.sh flash-spike OtaDownload`, then `python3 tools/serial_capture.py --seconds 120 --until
-SPIKE-END`). The spike reads the binary's `url`, `size` and `sha256` from the published manifest at
-`OTA_MANIFEST_URL`, then downloads it three times:
+**Done 2026-11-01** on hardware with the spike now at `tests/spikes/OtaUpdate/`
+(`./build.sh build-spike OtaUpdate`, `./build.sh flash-spike OtaUpdate`, then
+`python3 tools/serial_capture.py --seconds 120 --until SPIKE-END`). The spike reads the binary's
+`url`, `size` and `sha256` from the published manifest at `OTA_MANIFEST_URL`, then downloads it
+three times (the C2 version of the sketch downloads once):
 
 | Run | Received | Time | Rate | Free heap: before / min during | SHA-256 |
 |---|---|---|---|---|---|
@@ -244,6 +245,24 @@ and call `mbedtls_ecdsa_verify()`.
 
 This is the spike most likely to fail and the one that validates the `Prehashed()` contract between
 `ota_publish.py` and the device. It gates D2.
+
+**Done 2026-11-01** on hardware, added to the same `tests/spikes/OtaUpdate/` sketch as C1. Instead of
+a throwaway keypair, it checks the real release: the published manifest's signature (made by
+`ota_publish.py`), the embedded `OTA_PUBLIC_KEY_DER` from `src/security/OTAPublicKey.h`, and the
+digest of the firmware it just downloaded. The key loads with `mbedtls_pk_parse_public_key()` and
+each case calls `mbedtls_pk_verify(MBEDTLS_MD_SHA256, digest, ...)`, which parses the DER signature
+and calls `mbedtls_ecdsa_verify()`:
+
+| Case | Return | Expected | Result |
+|---|---|---|---|
+| Manifest digest + manifest signature | `0` | valid | pass |
+| Downloaded digest + manifest signature | `0` | valid | pass |
+| Digest with one bit flipped | `-0x4E00` | rejected | pass |
+| Signature with last byte flipped | `-0x4E00` | rejected | pass |
+
+`-0x4E00` is `MBEDTLS_ERR_ECP_VERIFY_FAILED`: both rejections come from the signature math, not
+from a parse error. The DER signature is 71 bytes. Each verification takes about 524 ms (software
+ECC), which is fine once per update. The `Prehashed()` contract holds.
 
 ### C3. OTA write
 

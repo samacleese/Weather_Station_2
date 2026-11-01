@@ -34,7 +34,7 @@ require_device() {
 }
 
 require_spike_name() {
-    [ -n "${1:-}" ] || { echo "Spike name required, e.g. $0 build-spike OtaDownload (see tests/spikes/)"; exit 1; }
+    [ -n "${1:-}" ] || { echo "Spike name required, e.g. $0 build-spike OtaUpdate (see tests/spikes/)"; exit 1; }
 }
 
 usage() {
