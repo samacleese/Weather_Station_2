@@ -1,5 +1,5 @@
 # CMakeLists.txt
-# ABOUTME: Build and upload targets for the OTA update spike (C1 #54 download, C2 #55 signature).
+# ABOUTME: Build and upload targets for the OTA update spike (C1 #54 download, C2 #55 signature, C3 #56 write).
 # ABOUTME: Not part of ALL; build with ./build.sh build-spike OtaUpdate.
 set(OTA_UPDATE_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/OtaUpdate")
 

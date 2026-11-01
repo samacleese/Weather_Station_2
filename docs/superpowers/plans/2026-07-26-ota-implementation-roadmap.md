@@ -75,7 +75,7 @@ the button-confirm safety requirement, and the local-network threat model.
 | ✅ | B3 | #53 | Binary size budget check |
 | ✅ | C1 | #54 | Spike: streaming HTTP download with SHA-256 |
 | ✅ | C2 | #55 | Spike: ECDSA P-256 verification on device |
-| ❌ | C3 | #56 | Spike: OTA write to `app1` |
+| ✅ | C3 | #56 | Spike: OTA write to `app1` |
 | ❌ | C4 | #57 | Spike: GPIO 36 poll during active operation |
 | ❌ | D1 | #58 | `OTAManager::checkForUpdate` with host tests |
 | ❌ | D2 | #59 | `OTAManager::performUpdate` |
@@ -270,6 +270,41 @@ Stream a test binary to `app1` via `esp_ota_begin`/`esp_ota_write`/`esp_ota_end`
 partition, and restart.
 
 **Success:** `esp_ota_get_running_partition()->label` prints `app1`.
+
+**Done 2026-11-01** on hardware, added to the same `tests/spikes/OtaUpdate/` sketch. After the C1 and
+C2 checks it downloads a copy of its own binary and writes it to `app1`. The image that boots
+from that write can then print its running partition, which the weather firmware doesn't do. That
+copy was uploaded by hand to the Pi as `/ota-firmware/binaries/ota-update-spike`, next to the real
+release, which is untouched:
+
+```bash
+curl -X PUT -H "Content-Type: application/octet-stream" \
+    --data-binary @build/tests/spikes/OtaUpdate/OtaUpdate/OtaUpdate.ino.bin \
+    http://192.168.1.2:5000/ota-firmware/binaries/ota-update-spike
+```
+
+When it boots from `app0`, the sketch calls `esp_ota_begin(target, size)`, streams 4KB chunks
+through `esp_ota_write`, then calls `esp_ota_end` and `esp_ota_set_boot_partition`, and restarts.
+When it boots from any other slot, it reports and stops, so it doesn't update in a loop.
+
+| Check | Result |
+|---|---|
+| Boot after OTA write | `Running partition: app1 at 0x1f0000` |
+| Plain reset afterwards | still `app1` |
+| USB reflash | `app0`; the upload rewrites otadata at `0xe000` |
+| SHA-256 of the streamed image | matches the uploaded binary |
+
+Timing for the 1,050,624 B spike image:
+
+| Step | Time |
+|---|---|
+| Erase (`esp_ota_begin`) | 1,165 ms |
+| Download and write | 4,518 ms, of which 3,063 ms is `esp_ota_write` |
+| Finalize (`esp_ota_end`) | 203 ms |
+
+Writing to flash roughly halves the throughput seen in C1. Scaled linearly to the 1,757,408 B
+firmware, a full update should take about 2 s to erase plus about 7.5 s to stream. That is an
+estimate; D2 will measure the real figure.
 
 ### C4. GPIO 36 poll during active operation
 
