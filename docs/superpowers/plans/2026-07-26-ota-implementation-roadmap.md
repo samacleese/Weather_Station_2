@@ -20,20 +20,26 @@ The spec's Phase 0 — moving fonts and cat images into a LittleFS partition and
 `GFXfont` structs in PSRAM — is a hard prerequisite there only because the spec assumes 1.25MB OTA
 slots. The hardware does not require slots that small.
 
-Flash is 4MB (`build/WeatherStation/flash_args`: `--flash-size 4MB`) and nothing in the tree mounts
-SPIFFS or LittleFS. With no filesystem partition, dual-OTA slots fit at 1984KB each:
+Flash is 4MB (`build/WeatherStation/flash_args`: `--flash-size 4MB`). The `soldered-inkplate-boards`
+package already ships a dual-OTA scheme, `min_spiffs` ("Minimal SPIFFS (1.9MB APP with OTA/190KB
+SPIFFS)"), with 1920KB slots:
 
 ```
 nvs,      data, nvs,      0x9000,   0x5000
 otadata,  data, ota,      0xe000,   0x2000
-app0,     app,  ota_0,    0x10000,  0x1F0000   # 2,031,616 B
-app1,     app,  ota_1,    0x200000, 0x1F0000   # 2,031,616 B
+app0,     app,  ota_0,    0x10000,  0x1E0000   # 1,966,080 B
+app1,     app,  ota_1,    0x1F0000, 0x1E0000   # 1,966,080 B
+spiffs,   data, spiffs,   0x3D0000, 0x20000    # unused
 coredump, data, coredump, 0x3F0000, 0x10000
 ```
 
-The current binary is 1,757,408 B, leaving 274KB (13.5%) of headroom with no asset work at all.
+The current binary is 1,757,408 B, leaving 209KB (10.6%) of headroom with no asset work at all.
 The spec's layout, by contrast, leaves roughly 23KB after its projected ~470KB of savings — too
 thin to ship against.
+
+A custom table with no SPIFFS partition would give 1984KB slots (274KB headroom), but it requires
+patching the installed board package's `boards.txt` in the `Containerfile`. The stock scheme was
+chosen to avoid that; the 65KB difference is Track E's job to recover if it ever matters.
 
 Asset externalization therefore becomes an independent size-reduction track (Track E), driven by
 issues #20/#39/#14 and triggered when headroom actually erodes rather than by OTA. Build-time font
@@ -152,29 +158,27 @@ field came back empty on the host but not the device.
 
 ## Track B — Partition table
 
-### B1. Add an `ota` partition scheme and verify on hardware
+### B1. Verify the `min_spiffs` partition scheme on hardware
 
-Add `cmake/ota_partitions.csv` with the layout above. In the `Containerfile`, after the
-`arduino-cli core install soldered-inkplate-boards:esp32@3.0.0` step, append a partition-scheme menu
-entry to the installed package's `boards.txt` and copy the CSV into that version's
-`tools/partitions/`:
+No build changes: `PartitionScheme=min_spiffs` is already selectable via `--board-options`.
+
+Verify with a throwaway sketch built with `PartitionScheme=min_spiffs` that
+`esp_ota_get_next_update_partition()` returns non-NULL and `update_partition->label` prints `app1`.
+This is the spike that gates the rest of Track B.
+
+**Done 2026-11-01** on hardware. Serial output:
 
 ```
-Inkplate10.menu.PartitionScheme.ota=OTA (dual 1984KB)
-Inkplate10.menu.PartitionScheme.ota.build.partitions=ota_partitions
-Inkplate10.menu.PartitionScheme.ota.upload.maximum_size=2031616
+running: label=app0 subtype=0x10 address=0x010000 size=0x1e0000
+boot: label=app0 subtype=0x10 address=0x010000 size=0x1e0000
+next_update: label=app1 subtype=0x11 address=0x1f0000 size=0x1e0000
 ```
-
-`build.partitions` must match the CSV basename without its extension. Confirm the installed package
-path and version directory at implementation time rather than assuming `3.0.0` stays current.
-
-Verify with a throwaway sketch that `esp_ota_get_next_update_partition()` returns non-NULL and
-`update_partition->label` prints `app1`. This is the spike that gates the rest of Track B.
 
 ### B2. Switch the firmware target to the OTA scheme
 
 Change the `WeatherStation` target's `--board-options` in `CMakeLists.txt` from
-`PartitionScheme=huge_app` to `PartitionScheme=ota`. The two test-sketch targets stay on `default`.
+`PartitionScheme=huge_app` to `PartitionScheme=min_spiffs`. The two test-sketch targets stay on
+`default`.
 
 `cmake/BoardOptions.cmake` deliberately keeps `PartitionScheme` out of
 `INKPLATE10_COMMON_BOARD_OPTIONS` because it differs per target; its comment names `huge_app` and
@@ -185,8 +189,11 @@ Flash over USB and confirm a normal weather cycle still renders. Depends on B1.
 ### B3. Binary size budget check
 
 Add a post-build step comparing the `.bin` size against the partition's `upload.maximum_size` and
-warning past roughly 85%. Without it, the first build that overflows a slot is discovered as a
+warning when headroom erodes. Without it, the first build that overflows a slot is discovered as a
 flashing failure rather than a build warning. This is also the trigger mechanism for Track E.
+
+The binary is already 89.4% of a `min_spiffs` slot, so the threshold cannot be the originally
+proposed 85%, which would warn on every build from day one. Pick the threshold when implementing B3.
 
 ---
 
