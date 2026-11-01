@@ -73,7 +73,7 @@ the button-confirm safety requirement, and the local-network threat model.
 | ✅ | B1 | #51 | Dual-OTA partition scheme, verified on hardware |
 | ✅ | B2 | #52 | Switch firmware target to the OTA scheme |
 | ✅ | B3 | #53 | Binary size budget check |
-| ❌ | C1 | #54 | Spike: streaming HTTP download with SHA-256 |
+| ✅ | C1 | #54 | Spike: streaming HTTP download with SHA-256 |
 | ❌ | C2 | #55 | Spike: ECDSA P-256 verification on device |
 | ❌ | C3 | #56 | Spike: OTA write to `app1` |
 | ❌ | C4 | #57 | Spike: GPIO 36 poll during active operation |
@@ -219,6 +219,21 @@ the final hash. Use a bare `HTTPClient` following the `BatteryLogger` pattern �
 plain-HTTP local fetch.
 
 **Success:** hash matches the expected value; completes without OOM or timeout.
+
+**Done 2026-11-01** on hardware with `tests/spikes/OtaDownload/` (`./build.sh build-spike OtaDownload`,
+`./build.sh flash-spike OtaDownload`, then `python3 tools/serial_capture.py --seconds 120 --until
+SPIKE-END`). The spike reads the binary's `url`, `size` and `sha256` from the published manifest at
+`OTA_MANIFEST_URL`, then downloads it three times:
+
+| Run | Received | Time | Rate | Free heap: before / min during | SHA-256 |
+|---|---|---|---|---|---|
+| 1 | 1,757,408 B | 2.38 s | 739 kB/s | 224,416 / 215,796 B | match |
+| 2 | 1,757,408 B | 2.40 s | 732 kB/s | 224,152 / 215,620 B | match |
+| 3 | 1,757,408 B | 2.54 s | 691 kB/s | 224,152 / 214,280 B | match |
+
+Streaming costs about 10KB of internal heap with a 4KB static buffer, and heap returns to the same
+level each run. Largest free block stayed at 110,580 B. This measures download and hashing only;
+C3 adds the flash-write cost.
 
 ### C2. ECDSA P-256 verification
 

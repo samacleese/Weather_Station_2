@@ -33,6 +33,10 @@ require_device() {
     [ -e "${SERIAL_PORT}" ] || { echo "Device not found: ${SERIAL_PORT}"; exit 1; }
 }
 
+require_spike_name() {
+    [ -n "${1:-}" ] || { echo "Spike name required, e.g. $0 build-spike OtaDownload (see tests/spikes/)"; exit 1; }
+}
+
 usage() {
     cat <<EOF
 Usage: $0 <subcommand>
@@ -46,6 +50,8 @@ Subcommands:
   test-python         Run pytest against tools/ pure-logic functions
   build-device-tests  Compile DeviceUnitTests sketch
   flash-device-tests  Flash DeviceUnitTests to device
+  build-spike <name>  Compile a throwaway spike sketch from tests/spikes/<name>
+  flash-spike <name>  Flash a spike sketch to device
 
 Environment:
   SERIAL_PORT         Device path (default: /dev/ttyUSB0)
@@ -86,6 +92,17 @@ case "${1:-}" in
         run_in_container \
             "--device" "${SERIAL_PORT}" "${USB_GROUP_FLAG[@]}" \
             "SERIAL_PORT=${SERIAL_PORT} cmake --build build --target upload-DeviceUnitTests"
+        ;;
+    build-spike)
+        require_spike_name "${2:-}"
+        run_in_container "cmake --build build --target ${2}"
+        ;;
+    flash-spike)
+        require_spike_name "${2:-}"
+        require_device
+        run_in_container \
+            "--device" "${SERIAL_PORT}" "${USB_GROUP_FLAG[@]}" \
+            "SERIAL_PORT=${SERIAL_PORT} cmake --build build --target upload-${2}"
         ;;
     *)
         usage
