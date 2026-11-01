@@ -76,7 +76,7 @@ the button-confirm safety requirement, and the local-network threat model.
 | ✅ | C1 | #54 | Spike: streaming HTTP download with SHA-256 |
 | ✅ | C2 | #55 | Spike: ECDSA P-256 verification on device |
 | ✅ | C3 | #56 | Spike: OTA write to `app1` |
-| ❌ | C4 | #57 | Spike: GPIO 36 poll during active operation |
+| ✅ | C4 | #57 | Spike: GPIO 36 poll during active operation |
 | ❌ | D1 | #58 | `OTAManager::checkForUpdate` with host tests |
 | ❌ | D2 | #59 | `OTAManager::performUpdate` |
 | ❌ | D3 | #60 | Sketch integration and button confirmation |
@@ -313,6 +313,20 @@ device is awake, which is a different condition from the deep-sleep wakeup confi
 
 **Success:** a press reads LOW, idle reads HIGH.
 
+**Done 2026-11-01** on hardware with `tests/spikes/WakeButton/`. The sketch polls
+`digitalRead(36)` every 100 ms with the display initialised, WiFi connected and
+`display.readBattery()` called once a second, so the SAR ADC powers up during polling as it will in
+the real firmware:
+
+| Phase | Samples | LOW samples | Presses counted |
+|---|---|---|---|
+| 10 s idle, hands off | 100 | 0 | 0 |
+| 20 s, 12 presses by hand | 199 | 21 | 12 |
+
+No spurious LOW readings, and every press was counted. A normal press held LOW for one or two
+samples (100 to 200 ms), so a quick tap can fall between polls. D3 avoids that by requiring a
+2-second hold to confirm.
+
 ---
 
 ## Track D — OTAManager
@@ -371,6 +385,7 @@ Implementation notes that will otherwise bite:
 - `PRIu64` from `<inttypes.h>`, not `%llu`, which is broken on ESP32 Arduino's newlib-nano.
 - The font maps are `std::map`, and `.at()` on an unmapped key is a runtime failure. `Roboto_Medium.at(35)` exists; verify any other size against `layout.json` before using it.
 - Battery gate reads `InkplateBatteryReader::readVoltage()` at confirmation time and compares against `info.min_battery_mv`. The splash also shows battery, but the confirmation-time reading is the one that matters for flash safety.
+- Confirming the update takes a 2-second hold of the wake button: about 20 consecutive LOW samples at the 100 ms poll interval. A single bump or tap can't start a flash, and C4 showed a normal press can last just one sample.
 - Both failure paths — battery too low, and update failed — fall through to normal weather display.
 - New layout fields go through all four files per the layout convention in `CLAUDE.md`: `layout.json`, `cmake/Layout.cmake`, `src/layout.h.in`, and `tools/layout-editor/index.html`.
 
@@ -380,8 +395,8 @@ Depends on D1, D2, C4.
 
 | Case | Expected |
 |---|---|
-| Confirm path: publish → device detects → button press | Flashes, restarts, boots the new firmware |
-| Skip path: device detects → no press → 30s elapses | Falls through to normal weather display |
+| Confirm path: publish → device detects → 2 s button hold | Flashes, restarts, boots the new firmware |
+| Skip path: device detects → no hold → 30s elapses | Falls through to normal weather display |
 | Tampered SHA-256 | Rejected; running partition untouched |
 | Tampered signature | Rejected; running partition untouched |
 | Battery below `min_battery_mv` | Refused with a message; falls through |
