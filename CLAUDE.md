@@ -1,179 +1,60 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Project Overview
-
-Weather Station 2 is an Arduino/ESP32 project for the Inkplate 10 E-paper display. It fetches weather data from weather.gov and displays it alongside rotating cat images. The device wakes every 10 minutes via deep sleep to conserve battery.
-
-## Hardware & Platform
-
-- **Target Hardware**: Inkplate 10 E-paper Display (ESP32-based)
-- **Required Libraries**: Inkplate, ArduinoLog, ArduinoJson, standard ESP32 libraries
+Weather Station 2: ESP32 firmware for the Inkplate 10 e-paper display. Shows weather.gov conditions plus rotating cat images, deep-sleeping 10 minutes between updates.
 
 ## Build, Flash & Serial
 
-The device appears on `/dev/ttyUSB0`. The user must be in the `dialout` group (already configured). `arduino-cli board list` will show the port as "Unknown" — that's normal, the Inkplate FQBN can't be auto-detected.
-
-A `Containerfile` at the repo root provides a fully pinned build environment (see `docs/README.md`).
-
-`config.cmake` is gitignored (it holds WiFi credentials). When setting up a new git worktree, copy it manually:
-```bash
-cp config.cmake .worktrees/<branch-name>/config.cmake
-```
-
-InkplateLibrary is installed like the project's other libraries — via `arduino-cli lib install`
-in the `Containerfile`, pinned to `11.1.2` — against Soldered's own board package
-(`soldered-inkplate-boards`), not mainline `esp32:esp32`. That board package ships a native
-Inkplate 10 board with a current IDF release, so no fork or custom board file is needed. FQBN is
-`soldered-inkplate-boards:esp32:Inkplate10` (see `cmake/BoardOptions.cmake`) — note this is
-distinct from `Inkplate10V2`, a newer PCB revision with a different pinout that this project's
-hardware is not.
+Everything goes through `build.sh` (auto-detects podman/docker; pinned env in `Containerfile`, see `docs/README.md`):
 
 ```bash
-# All build operations are wrapped by build.sh (auto-detects podman vs docker):
-./build.sh configure           # cmake configure (once, or when CMakeLists.txt changes)
-./build.sh build               # compile firmware
-./build.sh flash               # flash to /dev/ttyUSB0
-./build.sh monitor             # open serial monitor
-./build.sh test-host           # build and run host unit tests
-./build.sh test-python         # run pytest against tools/ pure-logic functions
-./build.sh build-device-tests  # compile device test sketch
-./build.sh flash-device-tests  # flash device tests
-./build.sh build-spike <Name>  # compile a throwaway spike from tests/spikes/<Name>
-./build.sh flash-spike <Name>  # flash a spike
-python3 tools/serial_capture.py --seconds 40  # reset board + capture serial (non-interactive; monitor needs a TTY)
-
-# Override the serial port if needed:
-SERIAL_PORT=/dev/ttyACM0 ./build.sh flash
-
-# Format (Google style, 120-char limit per .clang-format)
-clang-format -i src/**/*.cpp src/**/*.h
+./build.sh configure | build | flash | monitor | test-host | test-python
+./build.sh build-device-tests | flash-device-tests
+./build.sh build-spike <Name> | flash-spike <Name>   # spikes live in tests/spikes/<Name>
+python3 tools/serial_capture.py --seconds 40         # reset + capture serial (monitor needs a TTY)
+SERIAL_PORT=/dev/ttyACM0 ./build.sh flash            # override port
+clang-format -i src/**/*.cpp src/**/*.h              # Google style, 120 cols
 ```
 
-**Expected boot output** (normal operation):
+- Device is `/dev/ttyUSB0`; user is already in `dialout`. `arduino-cli board list` shows it as "Unknown", which is normal.
+- `config.cmake` is gitignored (WiFi creds, station ID, `BATTERY_LOGGER_URL`, `OTA_MANIFEST_URL`; reaches firmware via generated `src/user_settings.h`). Copy it into new worktrees: `cp config.cmake .worktrees/<branch>/config.cmake`.
+- Board: Soldered's `soldered-inkplate-boards` package, FQBN `soldered-inkplate-boards:esp32:Inkplate10` (`cmake/BoardOptions.cmake`). Not `Inkplate10V2`, which is a different pinout. InkplateLibrary pinned to 11.1.2 in `Containerfile`.
+
+Expected boot output:
 ```
 Waiting for WiFi to connect. connected
 Waiting for NTP time sync: I: Current time: ...
 I: [HTTPS] GET... code: 200
 ```
-
-The `Wavefrom load failed! Upload new waveform in EEPROM.` warning on boot is a pre-existing Inkplate e-paper waveform message — not an error.
-
-## Project Structure
-
-```
-Weather_Station_2/
-├── Weather_Station_2.ino          # Main firmware entry point
-├── src/                           # Core application code
-│   ├── network/                   # Network and API components
-│   │   ├── Network.h/.cpp         # WiFi management
-│   │   └── CurrentConditions.h/.cpp # Weather.gov API client
-│   ├── display/                   # Display and UI components
-│   │   ├── DisplayLocations.h/.cpp # Text layout and positioning
-│   │   ├── Kitties.h/.cpp         # Cat image rotation logic
-│   │   └── KittyPics.h/.cpp       # Cat image bitmap data
-│   └── security/                  # SSL and certificate management
-│       └── CACerts.h/.cpp         # Certificate store
-├── assets/                        # Non-code resources
-│   ├── fonts/                     # Roboto font family headers
-│   ├── images/                    # Source PNG images
-│   └── certificates/              # SSL certificate files
-├── tools/                         # Development utilities
-│   ├── image_converter.py         # PNG to bitmap converter
-│   └── cert_collector.py          # SSL certificate updater
-└── docs/                          # Documentation
-    └── README.md
-```
+`Wavefrom load failed! Upload new waveform in EEPROM.` is a harmless pre-existing Inkplate message.
 
 ## Architecture
 
-All application logic lives in `setup()` in `Weather_Station_2.ino`. `loop()` is intentionally empty — the device deep-sleeps and reboots each cycle rather than looping.
+All logic is in `setup()` in `Weather_Station_2.ino`; `loop()` is intentionally empty. Flow: init display → WiFi → NTP → fetch weather → render (weather left, cat right, battery/temp bottom) → deep sleep 600s (300s on error).
 
-**Data flow:**
-1. Boot → init display → connect WiFi (via `Network`) → sync NTP
-2. Fetch weather from `api.weather.gov` (via `CurrentConditions`)
-3. Render display: weather left, cat image right, battery/temp bottom
-4. Deep sleep 600s (normal) or 300s (on error)
+- The `.ino` has a `std::make_unique` polyfill because the ESP32 core lacks it.
+- `Kitties` persists its rotation counter across deep sleep with `RTC_DATA_ATTR`.
+- `CACerts` is a static `std::map<String, const char*>` of hostname → PROGMEM PEM, used by `Network` to configure `WiFiClientSecure`.
+- Station is hardcoded as `KBFI` in `CurrentConditions.cpp`.
 
-**Key non-obvious details:**
+## weather.gov API
 
-- `Weather_Station_2.ino` includes a `std::make_unique` polyfill (lines 12–17) because the ESP32 Arduino core doesn't provide it.
-- `Kitties` uses `RTC_DATA_ATTR` to persist the image rotation counter across deep sleep cycles without hitting flash.
-- `CACerts` is a static `std::map<String, const char*>` mapping hostnames to PEM certs embedded as PROGMEM strings. Used by `Network` to configure `WiFiClientSecure` before each HTTPS request.
-- WiFi credentials and station ID are in `config.cmake` (gitignored; copy from `config.cmake.example`). Deployment-specific URLs — `BATTERY_LOGGER_URL` and `OTA_MANIFEST_URL` — live there too, reaching the firmware via the generated `src/user_settings.h`.
-- Weather station is hardcoded as `KBFI` (Seattle/Boeing Field) in `CurrentConditions.cpp`.
+`GET https://api.weather.gov/stations/{id}/observations/latest` (spec: `https://api.weather.gov/openapi.json`). `CurrentConditions` filters to `textDescription`, `rawMessage`, `windSpeed`, `dewpoint`, `temperature` with ArduinoJson `DeserializationOption::Filter`. Gotchas: `rawMessage` can be `""`; values are SI (degC, km/h); `qualityControl: "Z"` means no data.
 
 ## Certificate Updates
 
-When a weather.gov cert expires, fetch the current intermediate CA from the live server and update `src/security/CACerts.cpp` manually (add new PROGMEM constant, update the domain→cert map). The `cert_collector.py` tool can automate this:
-
-```bash
-python3 tools/cert_collector.py -u src/security/CACerts.cpp -f src/security/CACerts.h
-```
-
-Also save the new `.pem` to `assets/certificates/` for reference.
-
-## weather.gov API Reference
-
-The device uses the National Weather Service API at `https://api.weather.gov`.
-
-**OpenAPI spec:** `https://api.weather.gov/openapi.json`
-
-### Endpoint used
-
-```
-GET /stations/{stationId}/observations/latest
-```
-
-Optional query param: `require_qc` (boolean) — omitted, not currently used.
-
-### Response structure
-
-The response is a GeoJSON Feature. Relevant fields are under `properties`:
-
-| Field | Type | Units | Notes |
-|---|---|---|---|
-| `textDescription` | string | — | Human-readable summary, e.g. `"Clear"` |
-| `rawMessage` | string | — | METAR string; may be empty string (not null) |
-| `temperature` | QuantitativeValue | `wmoUnit:degC` | `{ value: 5.0, unitCode: "wmoUnit:degC", qualityControl: "V" }` |
-| `dewpoint` | QuantitativeValue | `wmoUnit:degC` | Same structure as temperature |
-| `windSpeed` | QuantitativeValue | `wmoUnit:km_h-1` | Fractional km/h, e.g. `7.416` |
-| `windDirection` | QuantitativeValue | `wmoUnit:degree_(angle)` | Not currently fetched |
-| `windGust` | QuantitativeValue | `wmoUnit:km_h-1` | May be null |
-| `barometricPressure` | QuantitativeValue | `wmoUnit:Pa` | Not currently fetched |
-| `relativeHumidity` | QuantitativeValue | `wmoUnit:percent` | Not currently fetched |
-| `windChill` | QuantitativeValue | `wmoUnit:degC` | Not currently fetched |
-
-QuantitativeValue shape:
-```json
-{
-  "value": 7.416,
-  "unitCode": "wmoUnit:km_h-1",
-  "qualityControl": "V"
-}
-```
-
-`qualityControl` values: `"V"` = verified, `"Z"` = no data/null observation.
-
-The code filters the response to only `textDescription`, `rawMessage`, `windSpeed`, `dewpoint`, and `temperature` using ArduinoJson's `DeserializationOption::Filter`.
+When a weather.gov cert expires: `python3 tools/cert_collector.py -u src/security/CACerts.cpp -f src/security/CACerts.h` (or add the PROGMEM constant and map entry by hand). Save the new `.pem` to `assets/certificates/`.
 
 ## Adding Cat Images
 
-1. Add PNG to `assets/images/`
-2. Run `python3 tools/image_converter.py` (edit the script to point at your image)
-3. Update `src/display/KittyPics.h/.cpp` with the new bitmap array
-4. Register the image in `src/display/Kitties.h/.cpp`
+PNG into `assets/images/` → convert with `tools/image_converter.py` (edit the script's path) → add bitmap to `src/display/KittyPics.h/.cpp` → register in `src/display/Kitties.h/.cpp`.
 
-## Layout Editor
+## Layout
 
-Display text positions and font sizes are defined in `layout.json` and generated into `layout.h` at cmake configure time — see `cmake/Layout.cmake`. Edit `layout.json` visually with `tools/layout-editor/index.html` (open it directly in a browser).
+Text positions/fonts live in `layout.json`, generated into `layout.h` at configure time (`cmake/Layout.cmake`). Edit visually with `tools/layout-editor/index.html`. A new field needs all four updated together:
 
-Adding a new layout field requires updating all four of these in lockstep:
+1. `layout.json` (`x`, `y`, `font_size` under the screen)
+2. `cmake/Layout.cmake` (`string(JSON ... GET ...)`)
+3. `src/layout.h.in` (`@PLACEHOLDER@` → `#define`)
+4. `tools/layout-editor/index.html` (UI controls)
 
-1. `layout.json` — add the field's data (`x`, `y`, `font_size` as applicable) under the relevant screen
-2. `cmake/Layout.cmake` — add a `string(JSON ... GET ...)` line to extract the new field
-3. `src/layout.h.in` — add the corresponding `@PLACEHOLDER@` → `#define`
-4. `tools/layout-editor/index.html` — add UI controls so the field can be edited visually
-
-Re-run `./build.sh configure` after editing `layout.json` to regenerate `layout.h`.
+Re-run `./build.sh configure` after editing `layout.json`.
