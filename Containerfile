@@ -53,7 +53,7 @@ RUN arduino-cli config set board_manager.additional_urls \
 
 # Pin libraries.
 RUN arduino-cli lib install \
-    "ArduinoJson@6.18.5" \
+    "ArduinoJson@6.21.6" \
     "ArduinoLog@1.1.1" \
     "LCBUrl@1.1.4" \
     "AUnit@1.7.1" \

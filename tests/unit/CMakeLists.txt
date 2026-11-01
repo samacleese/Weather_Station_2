@@ -13,7 +13,7 @@ include(FetchContent)
 FetchContent_Declare(
   ArduinoJson
   GIT_REPOSITORY https://github.com/bblanchon/ArduinoJson.git
-  GIT_TAG        v6.21.5
+  GIT_TAG        v6.21.6
 )
 FetchContent_MakeAvailable(ArduinoJson)
 
