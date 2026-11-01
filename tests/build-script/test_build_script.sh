@@ -58,6 +58,16 @@ assert_exit_code       "flash-device-tests: missing device exits 1"  1 env SERIA
 assert_output_contains "flash-device-tests: missing device error message" "Device not found" \
     env SERIAL_PORT=/dev/nonexistent "$SCRIPT" flash-device-tests
 
+# spike subcommands need a spike name
+assert_exit_code       "build-spike: missing name exits 1"           1 "$SCRIPT" build-spike
+assert_output_contains "build-spike: missing name error message" "Spike name required" "$SCRIPT" build-spike
+assert_exit_code       "flash-spike: missing name exits 1"           1 "$SCRIPT" flash-spike
+assert_output_contains "flash-spike: missing name error message" "Spike name required" "$SCRIPT" flash-spike
+
+assert_exit_code       "flash-spike: missing device exits 1"         1 env SERIAL_PORT=/dev/nonexistent "$SCRIPT" flash-spike OtaDownload
+assert_output_contains "flash-spike: missing device error message" "Device not found" \
+    env SERIAL_PORT=/dev/nonexistent "$SCRIPT" flash-spike OtaDownload
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

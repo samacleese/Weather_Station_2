@@ -40,6 +40,9 @@ hardware is not.
 ./build.sh test-python         # run pytest against tools/ pure-logic functions
 ./build.sh build-device-tests  # compile device test sketch
 ./build.sh flash-device-tests  # flash device tests
+./build.sh build-spike <Name>  # compile a throwaway spike from tests/spikes/<Name>
+./build.sh flash-spike <Name>  # flash a spike
+python3 tools/serial_capture.py --seconds 40  # reset board + capture serial (non-interactive; monitor needs a TTY)
 
 # Override the serial port if needed:
 SERIAL_PORT=/dev/ttyACM0 ./build.sh flash

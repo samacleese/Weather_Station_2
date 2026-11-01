@@ -4,3 +4,4 @@
 
 add_subdirectory(GrayscaleCalibration)
 add_subdirectory(device)
+add_subdirectory(spikes)
