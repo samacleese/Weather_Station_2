@@ -193,7 +193,9 @@ warning when headroom erodes. Without it, the first build that overflows a slot 
 flashing failure rather than a build warning. This is also the trigger mechanism for Track E.
 
 The binary is already 89.4% of a `min_spiffs` slot, so the threshold cannot be the originally
-proposed 85%, which would warn on every build from day one. Pick the threshold when implementing B3.
+proposed 85%, which would warn on every build from day one. B3 warns above 95%
+(`FIRMWARE_SIZE_WARN_PERCENT` in `CMakeLists.txt`) and fails the build if the `.bin` exceeds the
+`ota_1` partition.
 
 ---
 

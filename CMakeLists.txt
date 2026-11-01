@@ -19,6 +19,8 @@ configure_file(src/user_settings.h.in ${GENERATED_INCLUDE_DIR}/weather_station_2
 
 # ── Firmware target ───────────────────────────────────────────────────────────
 set(WEATHER_STATION_BUILD_DIR "${CMAKE_BINARY_DIR}/WeatherStation")
+# Warn when the firmware .bin passes this share of its OTA slot (see tools/check_firmware_size.py).
+set(FIRMWARE_SIZE_WARN_PERCENT 95)
 
 add_custom_target(WeatherStation ALL
     COMMAND arduino-cli compile
@@ -28,6 +30,10 @@ add_custom_target(WeatherStation ALL
         --build-property "compiler.c.extra_flags=-I${GENERATED_INCLUDE_DIR}"
         --build-path ${WEATHER_STATION_BUILD_DIR}
         ${CMAKE_SOURCE_DIR}
+    COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/check_firmware_size.py
+        --firmware ${WEATHER_STATION_BUILD_DIR}/Weather_Station_2.ino.bin
+        --partitions ${WEATHER_STATION_BUILD_DIR}/Weather_Station_2.ino.partitions.bin
+        --warn-percent ${FIRMWARE_SIZE_WARN_PERCENT}
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     COMMENT "Compiling WeatherStation firmware via arduino-cli"
     VERBATIM
