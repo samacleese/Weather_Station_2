@@ -1,7 +1,8 @@
 # ABOUTME: Board identity and options for the Inkplate 10, passed to arduino-cli compile/upload.
 # ABOUTME: Single source of truth for FQBN and the board-options shared by all three CMake targets.
-# PartitionScheme legitimately differs per target (WeatherStation needs huge_app; the test
-# sketches use default) and is composed onto INKPLATE10_COMMON_BOARD_OPTIONS by each target.
+# PartitionScheme legitimately differs per target (WeatherStation needs min_spiffs, the stock
+# dual-OTA layout with 1920KB app slots; the test sketches use default) and is composed onto
+# INKPLATE10_COMMON_BOARD_OPTIONS by each target.
 #
 # FQBN is Soldered's own board package (soldered-inkplate-boards), not mainline esp32:esp32.
 # "Inkplate10" (build.board=INKPLATE10, labeled "e-radionica Inkplate 10" in arduino-cli) is the
