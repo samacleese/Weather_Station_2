@@ -78,7 +78,7 @@ the button-confirm safety requirement, and the local-network threat model.
 | ✅ | C3 | #56 | Spike: OTA write to `app1` |
 | ✅ | C4 | #57 | Spike: GPIO 36 poll during active operation |
 | ✅ | D1 | #58 | `OTAManager::checkForUpdate` with host tests |
-| ❌ | D2 | #59 | `OTAManager::performUpdate` |
+| 🔄 | D2 | #59 | `FirmwareInstaller::install` (the spec's `performUpdate`) |
 | ❌ | D3 | #60 | Sketch integration and button confirmation |
 | ❌ | D4 | #61 | End-to-end verification and negative tests |
 | ❌ | E1 | #39, #20 | Build-time font generation, used sizes only *(existing issues)* |
@@ -348,7 +348,7 @@ same way `CurrentConditions` is. New sources must be added to the explicit `add_
 
 Depends on A1, A2, A5.
 
-### D2. `performUpdate`
+### D2. `FirmwareInstaller::install` (the spec's `performUpdate`)
 
 Uses the ESP-IDF native OTA API (`esp_ota_ops.h`) exclusively — it must never be mixed with the
 Arduino `Update` library, and the native API is what exposes `esp_ota_abort()` and partition-level
@@ -360,7 +360,8 @@ The call order is the safety property:
 2. per 4KB chunk: `esp_ota_write()` plus SHA-256 accumulate
 3. verify the computed SHA-256 against the manifest
 4. verify the ECDSA signature over that digest with the embedded public key
-5. only if both pass: `esp_ota_end()` → `esp_ota_set_boot_partition()` → `esp_restart()`
+5. only if both pass: `esp_ota_end()` → `esp_ota_set_boot_partition()` → return true; the caller
+   calls `esp_restart()` (see the design below)
 6. on either failure: `esp_ota_abort(handle)` and return false, leaving the running partition
    untouched
 
@@ -371,6 +372,61 @@ The call order is the safety property:
 count is implicitly verified when the SHA-256 matches. Set `HTTPClient::setTimeout()` to 30s so a
 dropped connection cannot hang the device with WiFi active. Render download progress against
 `info.size` roughly every 64KB, so a mid-stream dropout is distinguishable from normal operation.
+
+**Design (agreed 2026-11-01).** Two changes from the spec, both so that every path, including
+success, is host-testable:
+
+- The install logic is its own class, `FirmwareInstaller`, rather than `OTAManager::performUpdate`.
+  Its dependencies are unrelated to `checkForUpdate`'s, so `OTAManager`'s constructor stays as D1
+  left it.
+- `install()` returns `true` after `esp_ota_set_boot_partition()` and the caller restarts. D3 owns
+  the display, so it can show that the device is rebooting first.
+
+Components, in `src/ota/`:
+
+| Unit | Role | Host-compiled |
+|---|---|---|
+| `FirmwareInstaller(IFirmwareSource&, IOtaPartition&, IImageVerifier&)` | `bool install(const OTAManager::UpdateInfo&, ProgressFn)`: the sequencing below | yes |
+| `IFirmwareSource` | `open(url)`, `read(buf, len)` returning bytes read, `close()` | interface only |
+| `IOtaPartition` | `begin()`, `write(buf, len)`, `end()`, `abort()`, `setBoot()` | interface only |
+| `IImageVerifier` | `begin()`, `update(buf, len)`, `verify(sha256Hex, signatureB64)` | interface only |
+| `HttpFirmwareSource` | `HTTPClient` with a 30s timeout | no |
+| `EspOtaPartition` | `esp_ota_ops.h` only; next update partition, `OTA_SIZE_UNKNOWN` | no |
+| `EcdsaImageVerifier` | mbedtls SHA-256, then `mbedtls_pk_verify` with `OTA_PUBLIC_KEY_DER` (the C2 contract) | no |
+
+`ProgressFn` is a plain function pointer, `void (*)(size_t received, size_t total)`, called about
+every 64KB and at the end, so the installer never touches the display.
+
+`install()` sequence:
+
+1. `source.open(url)`; on failure return false without touching the partition.
+2. `partition.begin()`; on failure close the source and return false.
+3. `verifier.begin()`, then read `info.size` bytes in 4KB chunks, feeding each to the verifier and
+   the partition. A short read (timeout or drop) or a failed write: `abort()`, close, return false.
+4. Close the source, then `verifier.verify(info.sha256, info.signature)`; on failure `abort()` and
+   return false.
+5. `partition.end()`, then `partition.setBoot()`. On either failure return false *without*
+   `abort()`: `esp_ota_ops.h` (IDF 5.5) says `esp_ota_end()` frees the handle "regardless of
+   result".
+6. Return true.
+
+Reading exactly `info.size` bytes is safe even though `size` is unsigned: the SHA-256 covers the
+whole image, so a shrunken `size` hashes a prefix and fails verification, and an inflated one hits a
+short read. The flash side still uses `OTA_SIZE_UNKNOWN`, so `size` never decides what is erased.
+The 4KB chunk buffer is a `FirmwareInstaller` member, not a stack array, because the Arduino main
+task has an 8KB stack.
+
+Verification:
+
+- Host tests (`tests/unit/FirmwareInstallerTest.cpp`) with fakes that log every call: success
+  (every byte to both partition and verifier, `end` then `setBoot`, progress at the 64KB marks,
+  final partial chunk); `open` and `begin` failures; short read, write failure and verify failure
+  each abort and never call `end`; `end` and `setBoot` failures return false without `abort`.
+- Hardware spike `tests/spikes/OtaInstall`, using the real implementations: tampered SHA-256,
+  tampered signature, a mid-stream drop (`WiFi.disconnect()` from the progress callback), a stalled
+  server to prove the 30s timeout, and finally a valid install of a freshly published build that
+  boots from `app1`. The boot partition is printed before and after each failure case. Measure the
+  real erase and stream times for the full firmware.
 
 Depends on C1, C2, C3.
 
@@ -386,6 +442,8 @@ Implementation notes that will otherwise bite:
 - The font maps are `std::map`, and `.at()` on an unmapped key is a runtime failure. `Roboto_Medium.at(35)` exists; verify any other size against `layout.json` before using it.
 - Battery gate reads `InkplateBatteryReader::readVoltage()` at confirmation time and compares against `info.min_battery_mv`. The splash also shows battery, but the confirmation-time reading is the one that matters for flash safety.
 - Confirming the update takes a 2-second hold of the wake button: about 20 consecutive LOW samples at the 100 ms poll interval. A single bump or tap can't start a flash, and C4 showed a normal press can last just one sample.
+- `FirmwareInstaller::install()` returns `true` instead of restarting (see D2). On `true`, show that the
+  device is rebooting, then call `esp_restart()`.
 - Both failure paths — battery too low, and update failed — fall through to normal weather display.
 - New layout fields go through all four files per the layout convention in `CLAUDE.md`: `layout.json`, `cmake/Layout.cmake`, `src/layout.h.in`, and `tools/layout-editor/index.html`.
 
