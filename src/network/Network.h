@@ -1,4 +1,4 @@
-// ABOUTME: WiFi connection management and HTTPS request handling for ESP32.
+// ABOUTME: WiFi connection management and HTTP/HTTPS request handling for ESP32.
 // ABOUTME: Provides error codes and retry logic for network operations.
 #ifndef NETWORK_H
 #define NETWORK_H
@@ -28,10 +28,11 @@ class WeatherNetwork : public IHttpClient {
     void begin();
     void syncTime();
 
-    // Fetches URL content into stream; retries on transient failures.
-    int get(WiFiClientSecure& client, const String& url, StreamString& stream, int retries = 2, int timeout = 10000);
+    // Fetches URL content into stream; retries on transient failures. tlsClient is nullptr for plain HTTP.
+    int get(WiFiClientSecure* tlsClient, const String& url, StreamString& stream, int retries = 2, int timeout = 10000);
 
-    // IHttpClient override: HTTPS GET with cert lookup, retries, and timeout.
+    // IHttpClient override: GET with retries and timeout. https:// URLs use TLS with cert lookup;
+    // http:// URLs use plain HTTP.
     int get(const std::string& url, std::string& body) override;
 
     // Get the text representation of an error code

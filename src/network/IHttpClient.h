@@ -8,7 +8,7 @@
 class IHttpClient {
    public:
     virtual ~IHttpClient() = default;
-    // Performs an HTTPS GET. Returns 0 on success or a negative error code.
+    // Performs an HTTP or HTTPS GET, chosen by the URL scheme. Returns 0 on success or a negative error code.
     // On success, body contains the response body.
     virtual int get(const std::string& url, std::string& body) = 0;
 };
