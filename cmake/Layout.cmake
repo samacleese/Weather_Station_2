@@ -19,10 +19,10 @@ string(JSON LAYOUT_MAIN_DESCRIPTION_X         GET ${LAYOUT_JSON} screens main de
 string(JSON LAYOUT_MAIN_DESCRIPTION_Y         GET ${LAYOUT_JSON} screens main description y)
 string(JSON LAYOUT_MAIN_DESCRIPTION_FONT_SIZE GET ${LAYOUT_JSON} screens main description font_size)
 
-# Main screen — METAR
-string(JSON LAYOUT_MAIN_METAR_X               GET ${LAYOUT_JSON} screens main metar x)
-string(JSON LAYOUT_MAIN_METAR_Y               GET ${LAYOUT_JSON} screens main metar y)
-string(JSON LAYOUT_MAIN_METAR_FONT_SIZE       GET ${LAYOUT_JSON} screens main metar font_size)
+# Main screen — precipitation forecast strip
+string(JSON LAYOUT_MAIN_PRECIP_FORECAST_X         GET ${LAYOUT_JSON} screens main precip_forecast x)
+string(JSON LAYOUT_MAIN_PRECIP_FORECAST_Y         GET ${LAYOUT_JSON} screens main precip_forecast y)
+string(JSON LAYOUT_MAIN_PRECIP_FORECAST_FONT_SIZE GET ${LAYOUT_JSON} screens main precip_forecast font_size)
 
 # Main screen — kitty position (dimensions come from Kitties::w/h)
 string(JSON LAYOUT_MAIN_KITTY_X GET ${LAYOUT_JSON} screens main kitty x)

@@ -27,11 +27,13 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 #include "src/network/IHttpClient.h"
 #include "src/network/SystemClock.h"
 #include "src/network/CurrentConditions.h"
+#include "src/network/PrecipForecast.h"
 #include "src/display/DisplayLocations.h"
 #include "assets/fonts/Roboto_Light.h"
 #include "assets/fonts/Roboto_Medium.h"
 #include "src/display/Kitties.h"
 #include "src/display/KittyPics.h"
+#include "src/display/Snowflake.h"
 #include "src/network/BatteryLogger.h"
 #include "src/network/Network.h"
 #include "src/display/BatteryMeter.h"
@@ -46,6 +48,37 @@ static const uint64_t COMPILED_VERSION = FIRMWARE_VERSION;
 Inkplate display(INKPLATE_3BIT);
 
 char buffer[256];
+
+// Horizontal gap between forecast days, and between a percent and its snowflake.
+static const int16_t PRECIP_DAY_GAP = 30;
+static const int16_t SNOWFLAKE_GAP = 4;
+// Color 0 is black in INKPLATE_3BIT mode (matches setTextColor(0, 7) below).
+static const uint16_t INK_BLACK = 0;
+
+// Draws "Precip:  Today 1%  Tue 0%  Wed 87%❄ ..." along the bottom of the screen.
+static void drawPrecipForecast(const PrecipForecast& forecast, int result) {
+    display.setFont(Roboto_Medium.at(LAYOUT_MAIN_PRECIP_FORECAST_FONT_SIZE));
+    display.setCursor(LAYOUT_MAIN_PRECIP_FORECAST_X, LAYOUT_MAIN_PRECIP_FORECAST_Y);
+    if (result != PRECIP_FORECAST_OK) {
+        display.print("Precip forecast unavailable");
+        return;
+    }
+
+    display.print("Precip:");
+    char dayText[16];
+    for (int i = 0; i < forecast.dayCount; i++) {
+        display.setCursor(display.getCursorX() + PRECIP_DAY_GAP, LAYOUT_MAIN_PRECIP_FORECAST_Y);
+        PrecipForecast::formatDay(forecast.days[i], dayText, sizeof(dayText));
+        display.print(dayText);
+        if (forecast.days[i].snow) {
+            // GFX font cursor y is the text baseline; sit the icon on it.
+            int16_t x = display.getCursorX() + SNOWFLAKE_GAP;
+            display.drawBitmap(x, LAYOUT_MAIN_PRECIP_FORECAST_Y - Snowflake::h, Snowflake::bitmap, Snowflake::w,
+                               Snowflake::h, INK_BLACK);
+            display.setCursor(x + Snowflake::w, LAYOUT_MAIN_PRECIP_FORECAST_Y);
+        }
+    }
+}
 
 void setup() {
     InkplateBatteryReader batteryReader(display);
@@ -80,6 +113,8 @@ void setup() {
 
     // Update weather with retry capability
     int updateResult = curr.update(3);  // Try up to 3 times
+    PrecipForecast forecast(*network, WEATHER_FORECAST_GRIDPOINT);
+    int forecastResult = forecast.update();
 
     display.clearDisplay();
 
@@ -179,6 +214,8 @@ void setup() {
         }
     }
     display.print(buffer);
+
+    drawPrecipForecast(forecast, forecastResult);
 
     // Draw kitty
     display.image.drawBitmap3Bit(LAYOUT_MAIN_KITTY_X, LAYOUT_MAIN_KITTY_Y, nextKitty, Kitties::w, Kitties::h);
