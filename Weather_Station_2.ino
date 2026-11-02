@@ -162,12 +162,6 @@ void setup() {
     }
     display.print(buffer);
 
-    // Raw Message
-    display.setFont(Roboto_Medium.at(LAYOUT_MAIN_METAR_FONT_SIZE));
-    display.setCursor(LAYOUT_MAIN_METAR_X, LAYOUT_MAIN_METAR_Y);
-    sprintf(buffer, "%s", curr.raw_message);
-    display.print(buffer);
-
     // Weather description
     display.setFont(Roboto_Light.at(LAYOUT_MAIN_DESCRIPTION_FONT_SIZE));
     display.setCursor(LAYOUT_MAIN_DESCRIPTION_X, LAYOUT_MAIN_DESCRIPTION_Y);

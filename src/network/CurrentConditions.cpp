@@ -18,7 +18,6 @@ CurrentConditions::CurrentConditions(IHttpClient& http, IClock& clock, const std
 
     JsonObject filter_properties = m_filter.createNestedObject("properties");
     filter_properties["textDescription"] = true;
-    filter_properties["rawMessage"] = true;
     filter_properties["windSpeed"] = true;
     filter_properties["dewpoint"] = true;
     filter_properties["temperature"] = true;
@@ -51,7 +50,6 @@ int CurrentConditions::update(int retries) {
         if (m_last_valid.valid && (m_clock.millis() - m_last_update_time < 1800000)) {
             NET_LOG_WARNING("Using cached weather data from previous update");
             description = m_last_valid.description.c_str();
-            raw_message = m_last_valid.raw_message.c_str();
             temperature = m_last_valid.temperature;
             dew_point = m_last_valid.dew_point;
             wind_speed = m_last_valid.wind_speed;
@@ -75,7 +73,6 @@ int CurrentConditions::update(int retries) {
 
     if (parseResult == CURRENT_CONDITIONS_OK) {
         m_last_valid.description = description;
-        m_last_valid.raw_message = raw_message;
         m_last_valid.temperature = temperature;
         m_last_valid.dew_point = dew_point;
         m_last_valid.wind_speed = wind_speed;
@@ -120,9 +117,7 @@ int CurrentConditions::parse(const std::string& input) {
         return CURRENT_CONDITIONS_DATA_MISSING;
     }
 
-    const char* prop_rawMessage = properties["rawMessage"] | "No data";
     const char* prop_textDescription = properties["textDescription"] | "Unknown";
-    raw_message = prop_rawMessage;
     description = prop_textDescription;
 
     JsonObject prop_temperature = properties["temperature"];
