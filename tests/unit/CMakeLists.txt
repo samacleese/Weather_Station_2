@@ -21,9 +21,11 @@ add_executable(unit_tests
     CACertsTest.cpp
     CurrentConditionsTest.cpp
     BatteryMeterTest.cpp
+    OTAManagerTest.cpp
     ../../src/security/CACerts.cpp
     ../../src/network/CurrentConditions.cpp
     ../../src/display/BatteryMeter.cpp
+    ../../src/ota/OTAManager.cpp
 )
 
 target_include_directories(unit_tests PRIVATE
