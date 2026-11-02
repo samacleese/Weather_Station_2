@@ -35,6 +35,10 @@ target_include_directories(unit_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../src
 )
 
+target_compile_definitions(unit_tests PRIVATE
+    FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures"
+)
+
 target_link_libraries(unit_tests PRIVATE GTest::gtest_main ArduinoJson)
 
 include(GoogleTest)
