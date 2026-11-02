@@ -3,22 +3,9 @@
 #include <gtest/gtest.h>
 #include "network/CurrentConditions.h"
 #include "network/IClock.h"
-#include "network/IHttpClient.h"
+#include "StubHttpClient.h"
 
 // ── Test doubles ─────────────────────────────────────────────────────────────
-
-class StubHttpClient : public IHttpClient {
-   public:
-    int next_result = 0;
-    std::string next_body;
-    int call_count = 0;
-
-    int get(const std::string& url, std::string& body) override {
-        call_count++;
-        body = next_body;
-        return next_result;
-    }
-};
 
 class StubClock : public IClock {
    public:
