@@ -127,6 +127,24 @@ TEST(UpdateTest, NetworkErrorReturnsCCNetworkError) {
     ASSERT_EQ(cc.update(), CURRENT_CONDITIONS_NETWORK_ERROR);
 }
 
+TEST(UpdateTest, CertErrorReturnsCCCertError) {
+    StubHttpClient http;
+    StubClock clock;
+    http.next_result = -5;  // NETWORK_CERT_ERROR value
+
+    CurrentConditions cc(http, clock, "KBFI");
+    ASSERT_EQ(cc.update(), CURRENT_CONDITIONS_CERT_ERROR);
+}
+
+TEST(UpdateTest, UnknownNetworkResultReturnsGeneralError) {
+    StubHttpClient http;
+    StubClock clock;
+    http.next_result = -99;
+
+    CurrentConditions cc(http, clock, "KBFI");
+    ASSERT_EQ(cc.update(), CURRENT_CONDITIONS_ERROR);
+}
+
 TEST(UpdateTest, MalformedJsonReturnsJsonError) {
     StubHttpClient http;
     StubClock clock;

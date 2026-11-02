@@ -20,6 +20,7 @@ FetchContent_MakeAvailable(ArduinoJson)
 add_executable(unit_tests
     CACertsTest.cpp
     CurrentConditionsTest.cpp
+    NetworkResultTest.cpp
     BatteryMeterTest.cpp
     OTAManagerTest.cpp
     ../../src/security/CACerts.cpp
