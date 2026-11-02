@@ -69,7 +69,7 @@ the button-confirm safety requirement, and the local-network threat model.
 | ✅ | A2 | #48 | `OTA_MANIFEST_URL` in config |
 | ✅ | A3 | #49 | `tools/ota_keygen.py` and embedded public key |
 | ✅ | A4 | #50 | `tools/ota_publish.py` |
-| ❌ | A5 | #33 | Pin ArduinoJson host/device *(existing issue)* |
+| ✅ | A5 | #33 | Pin ArduinoJson host/device *(existing issue)* |
 | ✅ | B1 | #51 | Dual-OTA partition scheme, verified on hardware |
 | ✅ | B2 | #52 | Switch firmware target to the OTA scheme |
 | ✅ | B3 | #53 | Binary size budget check |
@@ -77,7 +77,7 @@ the button-confirm safety requirement, and the local-network threat model.
 | ✅ | C2 | #55 | Spike: ECDSA P-256 verification on device |
 | ✅ | C3 | #56 | Spike: OTA write to `app1` |
 | ✅ | C4 | #57 | Spike: GPIO 36 poll during active operation |
-| ❌ | D1 | #58 | `OTAManager::checkForUpdate` with host tests |
+| ✅ | D1 | #58 | `OTAManager::checkForUpdate` with host tests |
 | ❌ | D2 | #59 | `OTAManager::performUpdate` |
 | ❌ | D3 | #60 | Sketch integration and button confirmation |
 | ❌ | D4 | #61 | End-to-end verification and negative tests |
