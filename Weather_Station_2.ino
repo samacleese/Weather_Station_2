@@ -50,7 +50,9 @@ Inkplate display(INKPLATE_3BIT);
 char buffer[256];
 
 // Horizontal gap between forecast days, and between a percent and its snowflake.
-static const int16_t PRECIP_DAY_GAP = 30;
+// Day gap is sized so the worst case ("Today 100%" + three "Wed 100%", each with a snowflake,
+// at 42pt from x=20) is 1190 px and fits the 1200 px panel.
+static const int16_t PRECIP_DAY_GAP = 14;
 static const int16_t SNOWFLAKE_GAP = 4;
 // Color 0 is black in INKPLATE_3BIT mode (matches setTextColor(0, 7) below).
 static const uint16_t INK_BLACK = 0;
