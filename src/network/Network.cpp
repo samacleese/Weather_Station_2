@@ -1,4 +1,4 @@
-// ABOUTME: WiFi connection management and HTTPS request handling for ESP32.
+// ABOUTME: WiFi connection management and HTTP/HTTPS request handling for ESP32.
 // ABOUTME: Provides retry logic, backoff, and SSL certificate error detection.
 #include "Network.h"
 
@@ -59,7 +59,8 @@ void WeatherNetwork::syncTime() {
     Log.notice(F("Current time: %s" CR), asctime(&timeinfo));
 }
 
-int WeatherNetwork::get(WiFiClientSecure& client, const String& url, StreamString& stream, int retries, int timeout) {
+int WeatherNetwork::get(
+    WiFiClientSecure* tlsClient, const String& url, StreamString& stream, int retries, int timeout) {
     HTTPClient https;
     int attempt = 0;
     int httpCode = 0;
@@ -79,7 +80,8 @@ int WeatherNetwork::get(WiFiClientSecure& client, const String& url, StreamStrin
 
         https.setTimeout(timeout);  // Set timeout for the HTTP request
 
-        if (https.begin(client, url.c_str())) {  // HTTPS
+        bool begun = tlsClient ? https.begin(*tlsClient, url.c_str()) : https.begin(url.c_str());
+        if (begun) {
             Log.notice(F("[HTTPS] GET..." CR));
             // start connection and send HTTP header
             httpCode = https.GET();
@@ -108,7 +110,7 @@ int WeatherNetwork::get(WiFiClientSecure& client, const String& url, StreamStrin
                     continue;  // Try again
                 }
             } else {
-                if (isCertError(client)) {
+                if (tlsClient && isCertError(*tlsClient)) {
                     https.end();
                     return NETWORK_CERT_ERROR;
                 }
@@ -177,22 +179,27 @@ bool WeatherNetwork::isCertError(WiFiClientSecure& client) {
 }
 
 int WeatherNetwork::get(const std::string& url, std::string& body) {
-    WiFiClientSecure client;
     StreamString stream;
-
-    // Extract hostname from URL: "https://host/path" → "host"
-    std::string hostname;
-    size_t scheme_end = url.find("://");
-    if (scheme_end != std::string::npos) {
-        size_t host_start = scheme_end + 3;
-        size_t host_end = url.find('/', host_start);
-        hostname = url.substr(host_start, host_end - host_start);
-    }
-
-    client.setCACert(CACerts::getCert(hostname));
-
     String arduino_url(url.c_str());
-    int result = get(client, arduino_url, stream, 2, 10000);
+    int result;
+
+    // Plain HTTP is for servers on the local network (the OTA manifest); everything else is TLS.
+    if (url.compare(0, 7, "http://") == 0) {
+        result = get(nullptr, arduino_url, stream, 2, 10000);
+    } else {
+        // Extract hostname from URL: "https://host/path" → "host"
+        std::string hostname;
+        size_t scheme_end = url.find("://");
+        if (scheme_end != std::string::npos) {
+            size_t host_start = scheme_end + 3;
+            size_t host_end = url.find('/', host_start);
+            hostname = url.substr(host_start, host_end - host_start);
+        }
+
+        WiFiClientSecure client;
+        client.setCACert(CACerts::getCert(hostname));
+        result = get(&client, arduino_url, stream, 2, 10000);
+    }
 
     if (result == NETWORK_OK) {
         body = stream.c_str();
