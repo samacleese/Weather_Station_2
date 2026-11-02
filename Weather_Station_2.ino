@@ -115,8 +115,6 @@ void setup() {
 
     // Update weather with retry capability
     int updateResult = curr.update(3);  // Try up to 3 times
-    PrecipForecast forecast(*network, WEATHER_FORECAST_GRIDPOINT);
-    int forecastResult = forecast.update();
 
     display.clearDisplay();
 
@@ -176,6 +174,10 @@ void setup() {
             return;  // Exit early
         }
     }
+
+    PrecipForecast forecast(*network, WEATHER_FORECAST_GRIDPOINT);
+    int forecastResult = forecast.update();
+    Log.notice(F("Free heap after forecast: %u, largest block: %u" CR), ESP.getFreeHeap(), ESP.getMaxAllocHeap());
 
     // Draw Temperature with validity check
     display.setTextSize(1);

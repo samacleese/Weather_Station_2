@@ -29,7 +29,7 @@ I: [HTTPS] GET... code: 200
 
 ## Architecture
 
-All logic is in `setup()` in `Weather_Station_2.ino`; `loop()` is intentionally empty. Flow: init display → WiFi → NTP → fetch weather → render (weather left, cat right, battery/temp bottom) → deep sleep 600s (300s on error).
+All logic is in `setup()` in `Weather_Station_2.ino`; `loop()` is intentionally empty. Flow: init display → WiFi → NTP → fetch weather → (if conditions OK) fetch precip forecast → render (weather left, cat right, battery/temp and precip strip bottom) → deep sleep 600s (300s on error).
 
 - The `.ino` has a `std::make_unique` polyfill because the ESP32 core lacks it.
 - `Kitties` persists its rotation counter across deep sleep with `RTC_DATA_ATTR`.

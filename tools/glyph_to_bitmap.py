@@ -3,7 +3,7 @@
 """
 Usage:
     python3 tools/glyph_to_bitmap.py --font /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf \\
-        --char ❄ --size 36 --name Snowflake --out src/display/Snowflake.h
+        --char ❄ --size 40 --name Snowflake --out src/display/Snowflake.h
 
 Use this when the display needs a symbol the Roboto fonts in assets/fonts/ don't have.
 The glyph is rendered, thresholded to 1 bit, and cropped to its ink. Then it's written as:

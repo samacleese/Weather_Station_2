@@ -72,7 +72,7 @@ class PrecipForecast {
 - Filter: `properties.periods[0].{startTime, isDaytime, probabilityOfPrecipitation, shortForecast}` (ArduinoJson applies the element-0 filter to every array element).
 - Error codes follow `CurrentConditions`: OK, general, JSON, network, data missing, cert. Network results map the same way (`-5` → cert error). That mapping is shared with `CurrentConditions` through a small helper, so it isn't copied.
 - Logging uses a new shared header `src/network/NetworkLog.h` (the `#ifdef ARDUINO` ArduinoLog-or-no-op macros now inlined in `CurrentConditions.cpp`), adopted by both clients.
-- `update()` does one attempt with no retries. A failure costs one strip of text, not the whole screen.
+- `PrecipForecast::update()` makes one request, with no retry loop of its own (unlike `CurrentConditions::update(3)`), though the network layer's own retries (`WeatherNetwork::get`) still apply. A failure costs one strip of text, not the whole screen.
 
 ### Snowflake bitmap (`src/display/Snowflake.h`)
 
@@ -90,7 +90,7 @@ After the current-conditions fetch:
 2. At `LAYOUT_MAIN_PRECIP_FORECAST_X/Y` in `Roboto_Medium.at(LAYOUT_MAIN_PRECIP_FORECAST_FONT_SIZE)`: print `Precip:`, then for each day print `formatDay()`. If `snow`, draw the snowflake at the cursor (bottom-aligned to the baseline) and advance the cursor past it. Then add a fixed gap before the next day.
 3. On failure, print `Precip forecast unavailable` at the same position.
 
-The full-error screen (no current conditions at all) is unchanged.
+The full-error screen (no current conditions at all) is unchanged. The forecast is fetched only after that early return, so a network failure doesn't pay for a second fetch.
 
 ### METAR removal
 
