@@ -37,6 +37,20 @@ TEST(WeekdayAbbrevTest, MalformedDatesFail) {
     ASSERT_FALSE(PrecipForecast::weekdayAbbrev(nullptr, nullptr, 0));
 }
 
+TEST(WeekdayAbbrevTest, DaysPastEndOfMonthFail) {
+    ASSERT_EQ(weekdayOf("2026-02-30"), "<fail>");
+    ASSERT_EQ(weekdayOf("2026-02-29"), "<fail>");  // 2026 is not a leap year
+    ASSERT_EQ(weekdayOf("1900-02-29"), "<fail>");  // century, not divisible by 400
+    ASSERT_EQ(weekdayOf("2026-04-31"), "<fail>");
+    ASSERT_EQ(weekdayOf("2026-11-31"), "<fail>");
+}
+
+TEST(WeekdayAbbrevTest, LastDayOfMonthPasses) {
+    ASSERT_EQ(weekdayOf("2028-02-29"), "Tue");  // leap year
+    ASSERT_EQ(weekdayOf("2026-04-30"), "Thu");
+    ASSERT_EQ(weekdayOf("2026-12-31"), "Thu");
+}
+
 // ── mentionsSnow() ──────────────────────────────────────────────────────────
 
 TEST(MentionsSnowTest, DetectsSnowAnyCase) {

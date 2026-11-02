@@ -19,13 +19,21 @@ static long daysFromCivil(int y, unsigned m, unsigned d) {
     return era * 146097 + static_cast<long>(doe) - 719468;
 }
 
+// Number of days in a Gregorian month (month is 1-12).
+static int daysInMonth(int year, int month) {
+    static const int days[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    bool leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+    return (month == 2 && leap) ? 29 : days[month - 1];
+}
+
 bool PrecipForecast::weekdayAbbrev(const char* isoDate, char* out, size_t len) {
     static const char* const names[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
     if (isoDate == nullptr || out == nullptr) return false;
 
     int year, month, day;
     if (sscanf(isoDate, "%4d-%2d-%2d", &year, &month, &day) != 3) return false;
-    if (month < 1 || month > 12 || day < 1 || day > 31) return false;
+    // Reject impossible dates; daysFromCivil would otherwise roll e.g. Feb 30 into March.
+    if (month < 1 || month > 12 || day < 1 || day > daysInMonth(year, month)) return false;
 
     // 1970-01-01 was a Thursday (index 4). The double modulo keeps negative day counts in range.
     long days = daysFromCivil(year, static_cast<unsigned>(month), static_cast<unsigned>(day));
