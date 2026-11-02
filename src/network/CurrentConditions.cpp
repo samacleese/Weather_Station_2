@@ -4,18 +4,8 @@
 
 #include <cstdio>
 
-#ifdef ARDUINO
-#include <ArduinoLog.h>
-#define CC_LOG_ERROR(fmt, ...) Log.errorln(fmt, ##__VA_ARGS__)
-#define CC_LOG_WARNING(fmt, ...) Log.warningln(fmt, ##__VA_ARGS__)
-#define CC_LOG_NOTICE(fmt, ...) Log.noticeln(fmt, ##__VA_ARGS__)
-#define CC_LOG_INFO(fmt, ...) Log.infoln(fmt, ##__VA_ARGS__)
-#else
-#define CC_LOG_ERROR(fmt, ...)
-#define CC_LOG_WARNING(fmt, ...)
-#define CC_LOG_NOTICE(fmt, ...)
-#define CC_LOG_INFO(fmt, ...)
-#endif
+#include "NetworkLog.h"
+#include "NetworkResult.h"
 
 static const char* url_format = "https://api.weather.gov/stations/%s/observations/latest";
 static unsigned int json_size = 768;
@@ -28,33 +18,29 @@ CurrentConditions::CurrentConditions(IHttpClient& http, IClock& clock, const std
 
     JsonObject filter_properties = m_filter.createNestedObject("properties");
     filter_properties["textDescription"] = true;
-    filter_properties["rawMessage"] = true;
     filter_properties["windSpeed"] = true;
     filter_properties["dewpoint"] = true;
     filter_properties["temperature"] = true;
 
-    CC_LOG_NOTICE("Set Current Conditions URL to %s", m_url.c_str());
+    NET_LOG_NOTICE("Set Current Conditions URL to %s", m_url.c_str());
 }
 
 int CurrentConditions::update(int retries) {
     lastError = CURRENT_CONDITIONS_OK;
     std::string body;
 
-    CC_LOG_NOTICE("Getting Current Conditions");
+    NET_LOG_NOTICE("Getting Current Conditions");
 
     int networkResult = m_http.get(m_url, body);
 
     if (networkResult != 0) {
-        CC_LOG_ERROR("Network error code: %d", networkResult);
+        NET_LOG_ERROR("Network error code: %d", networkResult);
 
-        // Map NetworkError enum values (defined in Network.h) by their integer
-        // values. CurrentConditions no longer includes Network.h to keep host
-        // compilation clean. These values must stay in sync with NetworkError.
-        switch (networkResult) {
-            case -1: case -2: case -3: case -4:
+        switch (classifyNetworkResult(networkResult)) {
+            case NetworkFailure::Connection:
                 lastError = CURRENT_CONDITIONS_NETWORK_ERROR;
                 break;
-            case -5:
+            case NetworkFailure::Certificate:
                 lastError = CURRENT_CONDITIONS_CERT_ERROR;
                 break;
             default:
@@ -62,9 +48,8 @@ int CurrentConditions::update(int retries) {
         }
 
         if (m_last_valid.valid && (m_clock.millis() - m_last_update_time < 1800000)) {
-            CC_LOG_WARNING("Using cached weather data from previous update");
+            NET_LOG_WARNING("Using cached weather data from previous update");
             description = m_last_valid.description.c_str();
-            raw_message = m_last_valid.raw_message.c_str();
             temperature = m_last_valid.temperature;
             dew_point = m_last_valid.dew_point;
             wind_speed = m_last_valid.wind_speed;
@@ -75,7 +60,7 @@ int CurrentConditions::update(int retries) {
     }
 
     if (body.empty()) {
-        CC_LOG_ERROR("Empty response from server");
+        NET_LOG_ERROR("Empty response from server");
         lastError = CURRENT_CONDITIONS_NETWORK_ERROR;
         return lastError;
     }
@@ -88,7 +73,6 @@ int CurrentConditions::update(int retries) {
 
     if (parseResult == CURRENT_CONDITIONS_OK) {
         m_last_valid.description = description;
-        m_last_valid.raw_message = raw_message;
         m_last_valid.temperature = temperature;
         m_last_valid.dew_point = dew_point;
         m_last_valid.wind_speed = wind_speed;
@@ -102,15 +86,15 @@ int CurrentConditions::update(int retries) {
 
 bool CurrentConditions::validateData() {
     if (temperature < -100 || temperature > 100) {
-        CC_LOG_ERROR("Invalid temperature value: %d", temperature);
+        NET_LOG_ERROR("Invalid temperature value: %d", temperature);
         return false;
     }
     if (dew_point < -100 || dew_point > 100 || dew_point > temperature + 5) {
-        CC_LOG_ERROR("Invalid dew point value: %d", dew_point);
+        NET_LOG_ERROR("Invalid dew point value: %d", dew_point);
         return false;
     }
     if (wind_speed < 0 || wind_speed > 500) {
-        CC_LOG_ERROR("Invalid wind speed value: %d", wind_speed);
+        NET_LOG_ERROR("Invalid wind speed value: %d", wind_speed);
         return false;
     }
     return true;
@@ -123,26 +107,24 @@ int CurrentConditions::parse(const std::string& input) {
         m_doc, input.c_str(), input.size(), DeserializationOption::Filter(m_filter));
 
     if (error) {
-        CC_LOG_ERROR("deserializeJson() failed: %s", error.c_str());
+        NET_LOG_ERROR("deserializeJson() failed: %s", error.c_str());
         return CURRENT_CONDITIONS_JSON_ERROR;
     }
 
     JsonObject properties = m_doc["properties"];
     if (properties.isNull()) {
-        CC_LOG_ERROR("Missing properties object in JSON response");
+        NET_LOG_ERROR("Missing properties object in JSON response");
         return CURRENT_CONDITIONS_DATA_MISSING;
     }
 
-    const char* prop_rawMessage = properties["rawMessage"] | "No data";
     const char* prop_textDescription = properties["textDescription"] | "Unknown";
-    raw_message = prop_rawMessage;
     description = prop_textDescription;
 
     JsonObject prop_temperature = properties["temperature"];
     if (!prop_temperature.isNull() && !prop_temperature["value"].isNull()) {
         temperature = prop_temperature["value"];
     } else {
-        CC_LOG_WARNING("No valid temperature received");
+        NET_LOG_WARNING("No valid temperature received");
         temperature = -999;
     }
 
@@ -150,7 +132,7 @@ int CurrentConditions::parse(const std::string& input) {
     if (!prop_dewpoint.isNull() && !prop_dewpoint["value"].isNull()) {
         dew_point = prop_dewpoint["value"];
     } else {
-        CC_LOG_WARNING("No valid dewpoint received");
+        NET_LOG_WARNING("No valid dewpoint received");
         dew_point = -999;
     }
 
@@ -158,17 +140,17 @@ int CurrentConditions::parse(const std::string& input) {
     if (!prop_windSpeed.isNull() && !prop_windSpeed["value"].isNull()) {
         wind_speed = prop_windSpeed["value"];
     } else {
-        CC_LOG_WARNING("No valid wind speed received");
+        NET_LOG_WARNING("No valid wind speed received");
         wind_speed = -999;
     }
 
     if (temperature == -999 && dew_point == -999 && wind_speed == -999) {
-        CC_LOG_ERROR("No valid weather data received");
+        NET_LOG_ERROR("No valid weather data received");
         return CURRENT_CONDITIONS_DATA_MISSING;
     }
 
-    CC_LOG_INFO("%s - Temp: %d C, Dew Point: %d C, Wind Speed: %d km/h",
-                description, temperature, dew_point, wind_speed);
+    NET_LOG_INFO("%s - Temp: %d C, Dew Point: %d C, Wind Speed: %d km/h",
+                 description, temperature, dew_point, wind_speed);
 
     return CURRENT_CONDITIONS_OK;
 }

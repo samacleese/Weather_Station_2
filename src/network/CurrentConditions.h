@@ -26,7 +26,6 @@ class CurrentConditions {
     bool validateData();
 
     const char* description = "Unknown";
-    const char* raw_message = "No data";
     int temperature = -999;
     int dew_point = -999;
     int wind_speed = -999;
@@ -43,7 +42,6 @@ class CurrentConditions {
 
     struct {
         std::string description;
-        std::string raw_message;
         int temperature = -999;
         int dew_point = -999;
         int wind_speed = -999;

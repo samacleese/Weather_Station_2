@@ -1,0 +1,319 @@
+{
+    "@context": [
+        "https://geojson.org/geojson-ld/geojson-context.jsonld",
+        {
+            "@version": "1.1",
+            "wx": "https://api.weather.gov/ontology#",
+            "geo": "http://www.opengis.net/ont/geosparql#",
+            "unit": "http://codes.wmo.int/common/unit/",
+            "@vocab": "https://api.weather.gov/ontology#"
+        }
+    ],
+    "type": "Feature",
+    "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+            [
+                [
+                    -121.3698,
+                    48.8511
+                ],
+                [
+                    -121.3759,
+                    48.8714
+                ],
+                [
+                    -121.4068,
+                    48.8674
+                ],
+                [
+                    -121.4007,
+                    48.8471
+                ],
+                [
+                    -121.3698,
+                    48.8511
+                ]
+            ]
+        ]
+    },
+    "properties": {
+        "units": "us",
+        "forecastGenerator": "BaselineForecastGenerator",
+        "generatedAt": "2026-11-02T18:26:31+00:00",
+        "updateTime": "2026-11-02T07:20:45+00:00",
+        "validTimes": "2026-11-02T01:00:00+00:00/P8D",
+        "elevation": {
+            "unitCode": "wmoUnit:m",
+            "value": 1655.064
+        },
+        "periods": [
+            {
+                "number": 1,
+                "name": "Today",
+                "startTime": "2026-11-02T10:00:00-08:00",
+                "endTime": "2026-11-02T18:00:00-08:00",
+                "isDaytime": true,
+                "temperature": 38,
+                "temperatureUnit": "F",
+                "temperatureTrend": null,
+                "probabilityOfPrecipitation": {
+                    "unitCode": "wmoUnit:percent",
+                    "value": 0
+                },
+                "windSpeed": "5 mph",
+                "windDirection": "S",
+                "icon": "https://api.weather.gov/icons/land/day/bkn?size=medium",
+                "shortForecast": "Partly Sunny",
+                "detailedForecast": "Partly sunny. High near 38, with temperatures falling to around 34 in the afternoon. South wind around 5 mph."
+            },
+            {
+                "number": 2,
+                "name": "Tonight",
+                "startTime": "2026-11-02T18:00:00-08:00",
+                "endTime": "2026-11-03T06:00:00-08:00",
+                "isDaytime": false,
+                "temperature": 33,
+                "temperatureUnit": "F",
+                "temperatureTrend": null,
+                "probabilityOfPrecipitation": {
+                    "unitCode": "wmoUnit:percent",
+                    "value": 12
+                },
+                "windSpeed": "5 to 8 mph",
+                "windDirection": "S",
+                "icon": "https://api.weather.gov/icons/land/night/ovc?size=medium",
+                "shortForecast": "Cloudy",
+                "detailedForecast": "Cloudy. Low around 33, with temperatures rising to around 35 overnight. South wind 5 to 8 mph."
+            },
+            {
+                "number": 3,
+                "name": "Tuesday",
+                "startTime": "2026-11-03T06:00:00-08:00",
+                "endTime": "2026-11-03T18:00:00-08:00",
+                "isDaytime": true,
+                "temperature": 38,
+                "temperatureUnit": "F",
+                "temperatureTrend": null,
+                "probabilityOfPrecipitation": {
+                    "unitCode": "wmoUnit:percent",
+                    "value": 0
+                },
+                "windSpeed": "1 to 6 mph",
+                "windDirection": "SSW",
+                "icon": "https://api.weather.gov/icons/land/day/bkn?size=medium",
+                "shortForecast": "Partly Sunny",
+                "detailedForecast": "Partly sunny. High near 38, with temperatures falling to around 34 in the afternoon. South southwest wind 1 to 6 mph."
+            },
+            {
+                "number": 4,
+                "name": "Tuesday Night",
+                "startTime": "2026-11-03T18:00:00-08:00",
+                "endTime": "2026-11-04T06:00:00-08:00",
+                "isDaytime": false,
+                "temperature": 31,
+                "temperatureUnit": "F",
+                "temperatureTrend": null,
+                "probabilityOfPrecipitation": {
+                    "unitCode": "wmoUnit:percent",
+                    "value": 0
+                },
+                "windSpeed": "1 to 5 mph",
+                "windDirection": "SW",
+                "icon": "https://api.weather.gov/icons/land/night/few?size=medium",
+                "shortForecast": "Mostly Clear",
+                "detailedForecast": "Mostly clear, with a low around 31. Southwest wind 1 to 5 mph."
+            },
+            {
+                "number": 5,
+                "name": "Wednesday",
+                "startTime": "2026-11-04T06:00:00-08:00",
+                "endTime": "2026-11-04T18:00:00-08:00",
+                "isDaytime": true,
+                "temperature": 38,
+                "temperatureUnit": "F",
+                "temperatureTrend": null,
+                "probabilityOfPrecipitation": {
+                    "unitCode": "wmoUnit:percent",
+                    "value": 57
+                },
+                "windSpeed": "6 mph",
+                "windDirection": "S",
+                "icon": "https://api.weather.gov/icons/land/day/sct/snow,60?size=medium",
+                "shortForecast": "Mostly Sunny then Rain And Snow Likely",
+                "detailedForecast": "Rain and snow likely after 4pm. Mostly sunny, with a high near 38. South wind around 6 mph. Chance of precipitation is 60%. Little or no snow accumulation expected."
+            },
+            {
+                "number": 6,
+                "name": "Wednesday Night",
+                "startTime": "2026-11-04T18:00:00-08:00",
+                "endTime": "2026-11-05T06:00:00-08:00",
+                "isDaytime": false,
+                "temperature": 32,
+                "temperatureUnit": "F",
+                "temperatureTrend": null,
+                "probabilityOfPrecipitation": {
+                    "unitCode": "wmoUnit:percent",
+                    "value": 90
+                },
+                "windSpeed": "3 to 12 mph",
+                "windDirection": "SSW",
+                "icon": "https://api.weather.gov/icons/land/night/snow,90?size=medium",
+                "shortForecast": "Rain And Snow",
+                "detailedForecast": "Rain and snow. Mostly cloudy, with a low around 32. Chance of precipitation is 90%. New snow accumulation of around one inch possible."
+            },
+            {
+                "number": 7,
+                "name": "Thursday",
+                "startTime": "2026-11-05T06:00:00-08:00",
+                "endTime": "2026-11-05T18:00:00-08:00",
+                "isDaytime": true,
+                "temperature": 35,
+                "temperatureUnit": "F",
+                "temperatureTrend": null,
+                "probabilityOfPrecipitation": {
+                    "unitCode": "wmoUnit:percent",
+                    "value": 55
+                },
+                "windSpeed": "3 to 9 mph",
+                "windDirection": "SSW",
+                "icon": "https://api.weather.gov/icons/land/day/snow,60/snow,30?size=medium",
+                "shortForecast": "Light Snow Likely",
+                "detailedForecast": "Snow likely. Mostly cloudy, with a high near 35. Little or no snow accumulation expected."
+            },
+            {
+                "number": 8,
+                "name": "Thursday Night",
+                "startTime": "2026-11-05T18:00:00-08:00",
+                "endTime": "2026-11-06T06:00:00-08:00",
+                "isDaytime": false,
+                "temperature": 30,
+                "temperatureUnit": "F",
+                "temperatureTrend": null,
+                "probabilityOfPrecipitation": {
+                    "unitCode": "wmoUnit:percent",
+                    "value": 84
+                },
+                "windSpeed": "3 to 16 mph",
+                "windDirection": "SSW",
+                "icon": "https://api.weather.gov/icons/land/night/snow,80?size=medium",
+                "shortForecast": "Snow",
+                "detailedForecast": "Snow. Mostly cloudy, with a low around 30. New snow accumulation of 3 to 7 inches possible."
+            },
+            {
+                "number": 9,
+                "name": "Friday",
+                "startTime": "2026-11-06T06:00:00-08:00",
+                "endTime": "2026-11-06T18:00:00-08:00",
+                "isDaytime": true,
+                "temperature": 33,
+                "temperatureUnit": "F",
+                "temperatureTrend": null,
+                "probabilityOfPrecipitation": {
+                    "unitCode": "wmoUnit:percent",
+                    "value": 84
+                },
+                "windSpeed": "3 to 15 mph",
+                "windDirection": "SSW",
+                "icon": "https://api.weather.gov/icons/land/day/snow,80/snow,70?size=medium",
+                "shortForecast": "Snow",
+                "detailedForecast": "Snow. Mostly cloudy, with a high near 33. New snow accumulation of 4 to 6 inches possible."
+            },
+            {
+                "number": 10,
+                "name": "Friday Night",
+                "startTime": "2026-11-06T18:00:00-08:00",
+                "endTime": "2026-11-07T06:00:00-08:00",
+                "isDaytime": false,
+                "temperature": 29,
+                "temperatureUnit": "F",
+                "temperatureTrend": null,
+                "probabilityOfPrecipitation": {
+                    "unitCode": "wmoUnit:percent",
+                    "value": 53
+                },
+                "windSpeed": "3 to 10 mph",
+                "windDirection": "S",
+                "icon": "https://api.weather.gov/icons/land/night/snow,50/snow,40?size=medium",
+                "shortForecast": "Chance Light Snow",
+                "detailedForecast": "A chance of snow before 10pm, then a chance of rain and snow. Mostly cloudy, with a low around 29. New snow accumulation of 1 to 3 inches possible."
+            },
+            {
+                "number": 11,
+                "name": "Saturday",
+                "startTime": "2026-11-07T06:00:00-08:00",
+                "endTime": "2026-11-07T18:00:00-08:00",
+                "isDaytime": true,
+                "temperature": 36,
+                "temperatureUnit": "F",
+                "temperatureTrend": null,
+                "probabilityOfPrecipitation": {
+                    "unitCode": "wmoUnit:percent",
+                    "value": 36
+                },
+                "windSpeed": "5 to 10 mph",
+                "windDirection": "SE",
+                "icon": "https://api.weather.gov/icons/land/day/snow,30/snow,40?size=medium",
+                "shortForecast": "Chance Rain And Snow",
+                "detailedForecast": "A chance of rain and snow. Mostly cloudy, with a high near 36. New snow accumulation of less than half an inch possible."
+            },
+            {
+                "number": 12,
+                "name": "Saturday Night",
+                "startTime": "2026-11-07T18:00:00-08:00",
+                "endTime": "2026-11-08T06:00:00-08:00",
+                "isDaytime": false,
+                "temperature": 32,
+                "temperatureUnit": "F",
+                "temperatureTrend": null,
+                "probabilityOfPrecipitation": {
+                    "unitCode": "wmoUnit:percent",
+                    "value": 70
+                },
+                "windSpeed": "5 to 16 mph",
+                "windDirection": "S",
+                "icon": "https://api.weather.gov/icons/land/night/rain,50/snow,70?size=medium",
+                "shortForecast": "Chance Rain then Rain And Snow Likely",
+                "detailedForecast": "A chance of rain before 1am, then rain and snow likely. Mostly cloudy, with a low around 32. New snow accumulation of 1 to 3 inches possible."
+            },
+            {
+                "number": 13,
+                "name": "Sunday",
+                "startTime": "2026-11-08T06:00:00-08:00",
+                "endTime": "2026-11-08T18:00:00-08:00",
+                "isDaytime": true,
+                "temperature": 35,
+                "temperatureUnit": "F",
+                "temperatureTrend": null,
+                "probabilityOfPrecipitation": {
+                    "unitCode": "wmoUnit:percent",
+                    "value": 70
+                },
+                "windSpeed": "2 to 15 mph",
+                "windDirection": "SSW",
+                "icon": "https://api.weather.gov/icons/land/day/snow,70?size=medium",
+                "shortForecast": "Rain And Snow Likely",
+                "detailedForecast": "Rain and snow likely. Mostly cloudy, with a high near 35. New snow accumulation of 2 to 4 inches possible."
+            },
+            {
+                "number": 14,
+                "name": "Sunday Night",
+                "startTime": "2026-11-08T18:00:00-08:00",
+                "endTime": "2026-11-09T06:00:00-08:00",
+                "isDaytime": false,
+                "temperature": 32,
+                "temperatureUnit": "F",
+                "temperatureTrend": null,
+                "probabilityOfPrecipitation": {
+                    "unitCode": "wmoUnit:percent",
+                    "value": 57
+                },
+                "windSpeed": "2 to 10 mph",
+                "windDirection": "S",
+                "icon": "https://api.weather.gov/icons/land/night/snow,60/snow,50?size=medium",
+                "shortForecast": "Rain And Snow Likely",
+                "detailedForecast": "Rain and snow likely. Mostly cloudy, with a low around 32. New snow accumulation of 1 to 2 inches possible."
+            }
+        ]
+    }
+}
