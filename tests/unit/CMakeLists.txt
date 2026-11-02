@@ -21,10 +21,12 @@ add_executable(unit_tests
     CACertsTest.cpp
     CurrentConditionsTest.cpp
     NetworkResultTest.cpp
+    PrecipForecastTest.cpp
     BatteryMeterTest.cpp
     OTAManagerTest.cpp
     ../../src/security/CACerts.cpp
     ../../src/network/CurrentConditions.cpp
+    ../../src/network/PrecipForecast.cpp
     ../../src/display/BatteryMeter.cpp
     ../../src/ota/OTAManager.cpp
 )
