@@ -24,6 +24,8 @@ class FirmwareInstaller {
     bool install(const OTAManager::UpdateInfo& info, ProgressFn progress);
 
    private:
+    void abortDownload();  // aborts the partition, then closes the source
+
     IFirmwareSource& m_source;
     IOtaPartition& m_partition;
     IImageVerifier& m_verifier;

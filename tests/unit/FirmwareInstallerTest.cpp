@@ -195,3 +195,93 @@ TEST_F(FirmwareInstallerTest, ReportsFinalProgressOnceWhenSizeIsA64KBMultiple) {
     std::vector<std::pair<size_t, size_t>> expected = {{65536, 131072}, {131072, 131072}};
     EXPECT_EQ(g_progress, expected);
 }
+
+// ── Failed installs ──────────────────────────────────────────────────────────
+
+// Red against Task 1: it carries on to begin, writes and setBoot.
+TEST_F(FirmwareInstallerTest, OpenFailureLeavesPartitionUntouched) {
+    source.open_ok = false;
+
+    EXPECT_FALSE(install());
+
+    EXPECT_EQ(log, CallLog({"source.open"}));
+    EXPECT_TRUE(partition.write_sizes.empty());
+}
+
+// Red against Task 1: it reads and writes anyway.
+TEST_F(FirmwareInstallerTest, BeginFailureClosesSourceWithoutReading) {
+    partition.begin_ok = false;
+
+    EXPECT_FALSE(install());
+
+    EXPECT_EQ(log, CallLog({"source.open", "partition.begin", "source.close"}));
+    EXPECT_EQ(source.read_count, 0);
+}
+
+// A server that sends less than info.size (dropped WiFi, stalled server hitting the read timeout).
+// Red against Task 1: it loops forever on zero-byte reads, so implement this check before running the
+// full suite (or the test binary hangs rather than failing).
+TEST_F(FirmwareInstallerTest, ShortReadAbortsWithoutEndingOrSettingBoot) {
+    source.image = makeImage(100000);
+
+    EXPECT_FALSE(install());
+
+    EXPECT_EQ(log, CallLog({"source.open", "partition.begin", "verifier.begin", "partition.abort", "source.close"}));
+    // Progress stopped at the last 64KB mark reached; no final report for an incomplete image.
+    std::vector<std::pair<size_t, size_t>> expected = {{65536, IMAGE_SIZE}};
+    EXPECT_EQ(g_progress, expected);
+}
+
+// Red against Task 1: it keeps reading and goes on to end and setBoot.
+TEST_F(FirmwareInstallerTest, WriteFailureAbortsAndStopsReading) {
+    partition.fail_write_number = 3;
+
+    EXPECT_FALSE(install());
+
+    EXPECT_EQ(log, CallLog({"source.open", "partition.begin", "verifier.begin", "partition.abort", "source.close"}));
+    EXPECT_EQ(source.read_count, 3);
+}
+
+// Red against Task 1: it calls end and setBoot and returns true.
+TEST_F(FirmwareInstallerTest, VerifyFailureAbortsWithoutEndingOrSettingBoot) {
+    verifier.verify_ok = false;
+
+    EXPECT_FALSE(install());
+
+    EXPECT_EQ(log,
+              CallLog({"source.open",
+                       "partition.begin",
+                       "verifier.begin",
+                       "source.close",
+                       "verifier.verify",
+                       "partition.abort"}));
+}
+
+// esp_ota_end releases the handle even when it fails, so aborting afterwards would be undefined.
+// Red against Task 1: it calls setBoot and returns true.
+TEST_F(FirmwareInstallerTest, EndFailureReturnsFalseWithoutAbort) {
+    partition.end_ok = false;
+
+    EXPECT_FALSE(install());
+
+    EXPECT_EQ(
+        log,
+        CallLog(
+            {"source.open", "partition.begin", "verifier.begin", "source.close", "verifier.verify", "partition.end"}));
+}
+
+// Red against Task 1: it returns true.
+TEST_F(FirmwareInstallerTest, SetBootFailureReturnsFalseWithoutAbort) {
+    partition.set_boot_ok = false;
+
+    EXPECT_FALSE(install());
+
+    EXPECT_EQ(log,
+              CallLog({"source.open",
+                       "partition.begin",
+                       "verifier.begin",
+                       "source.close",
+                       "verifier.verify",
+                       "partition.end",
+                       "partition.setBoot"}));
+}
