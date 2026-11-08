@@ -431,9 +431,9 @@ Verification:
   server to prove the 30s timeout, and finally a valid install of a freshly published build that
   boots from `app1`. The boot partition is printed before and after each failure case. Measure the
   real erase and stream times for the full firmware.
-- Measured on hardware (PR #59, 1779728 B image, built at 21c9bb3), all spike cases passing:
+- Measured on hardware (issue #59, 1779728 B image, built at 21c9bb3), all spike cases passing:
   - Erase: 2156, 6874, 6804, 2013 and 2884 ms across the five installs. The spread is unexplained.
-    None came near a watchdog.
+    No watchdog, panic or Guru Meditation lines appeared.
   - Valid install: 11322 ms total, about 7.9 s of streaming at about 224 KB/s.
   - Stalled server: gave up 30015 ms after the last progress report, so the 30s timeout reaches
     `readBytes`.
