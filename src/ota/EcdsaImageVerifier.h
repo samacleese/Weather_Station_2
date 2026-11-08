@@ -17,6 +17,7 @@ class EcdsaImageVerifier : public IImageVerifier {
 
    private:
     mbedtls_sha256_context m_sha;
+    bool m_hashFailed = false;
 };
 
 #endif  // ECDSA_IMAGE_VERIFIER_H

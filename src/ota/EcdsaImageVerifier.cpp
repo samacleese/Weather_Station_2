@@ -34,16 +34,29 @@ void EcdsaImageVerifier::begin() {
     // hashing context can hold the hardware SHA engine until it is freed.
     mbedtls_sha256_free(&m_sha);
     mbedtls_sha256_init(&m_sha);
-    mbedtls_sha256_starts(&m_sha, 0);  // 0 = SHA-256, not SHA-224
+    int ret = mbedtls_sha256_starts(&m_sha, 0);  // 0 = SHA-256, not SHA-224
+    m_hashFailed = ret != 0;
+    if (m_hashFailed) NET_LOG_WARNING("OTA SHA-256 start failed: %d", ret);
 }
 
-void EcdsaImageVerifier::update(const uint8_t* buf, size_t len) { mbedtls_sha256_update(&m_sha, buf, len); }
+void EcdsaImageVerifier::update(const uint8_t* buf, size_t len) {
+    // A hashing error is remembered rather than returned, so verify() fails closed and the installer aborts.
+    if (m_hashFailed) return;
+    int ret = mbedtls_sha256_update(&m_sha, buf, len);
+    m_hashFailed = ret != 0;
+    if (m_hashFailed) NET_LOG_WARNING("OTA SHA-256 update failed: %d", ret);
+}
 
 bool EcdsaImageVerifier::verify(const char* sha256Hex, const char* signatureB64) {
     uint8_t digest[DIGEST_SIZE];
-    mbedtls_sha256_finish(&m_sha, digest);
+    int ret = m_hashFailed ? 0 : mbedtls_sha256_finish(&m_sha, digest);
     mbedtls_sha256_free(&m_sha);
     mbedtls_sha256_init(&m_sha);
+    if (m_hashFailed) return false;  // already logged where it failed
+    if (ret != 0) {
+        NET_LOG_WARNING("OTA SHA-256 finish failed: %d", ret);
+        return false;
+    }
 
     uint8_t expected[DIGEST_SIZE];
     if (!fromHex(sha256Hex, expected, DIGEST_SIZE)) {
@@ -57,7 +70,7 @@ bool EcdsaImageVerifier::verify(const char* sha256Hex, const char* signatureB64)
 
     uint8_t signature[MAX_SIGNATURE_SIZE];
     size_t signatureLen = 0;
-    int ret = mbedtls_base64_decode(
+    ret = mbedtls_base64_decode(
         signature, sizeof(signature), &signatureLen, (const uint8_t*)signatureB64, strlen(signatureB64));
     if (ret != 0) {
         NET_LOG_WARNING("OTA signature is not valid base64: %d", ret);
