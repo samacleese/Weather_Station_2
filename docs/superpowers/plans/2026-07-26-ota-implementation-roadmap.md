@@ -417,7 +417,7 @@ The 4KB chunk buffer is a file-scope static in `FirmwareInstaller.cpp`: as a mem
 land on the 8KB loop-task stack whenever the installer is a local.
 
 `HttpFirmwareSource` disables HTTPClient keep-alive reuse (`setReuse(false)`), because a reused
-socket carried the wrong host or leftover body bytes into the next download. OTA code logs through
+socket would carry the wrong host or leftover body bytes into the next download. OTA code logs through
 `src/network/NetworkLog.h`.
 
 Verification:
