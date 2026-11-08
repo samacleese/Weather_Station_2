@@ -78,7 +78,7 @@ the button-confirm safety requirement, and the local-network threat model.
 | ✅ | C3 | #56 | Spike: OTA write to `app1` |
 | ✅ | C4 | #57 | Spike: GPIO 36 poll during active operation |
 | ✅ | D1 | #58 | `OTAManager::checkForUpdate` with host tests |
-| 🔄 | D2 | #59 | `FirmwareInstaller::install` (the spec's `performUpdate`) |
+| ✅ | D2 | #59 | `FirmwareInstaller::install` (the spec's `performUpdate`) |
 | ❌ | D3 | #60 | Sketch integration and button confirmation |
 | ❌ | D4 | #61 | End-to-end verification and negative tests |
 | ❌ | E1 | #39, #20 | Build-time font generation, used sizes only *(existing issues)* |
@@ -413,8 +413,12 @@ every 64KB and at the end, so the installer never touches the display.
 Reading exactly `info.size` bytes is safe even though `size` is unsigned: the SHA-256 covers the
 whole image, so a shrunken `size` hashes a prefix and fails verification, and an inflated one hits a
 short read. The flash side still uses `OTA_SIZE_UNKNOWN`, so `size` never decides what is erased.
-The 4KB chunk buffer is a `FirmwareInstaller` member, not a stack array, because the Arduino main
-task has an 8KB stack.
+The 4KB chunk buffer is a file-scope static in `FirmwareInstaller.cpp`: as a member it would still
+land on the 8KB loop-task stack whenever the installer is a local.
+
+`HttpFirmwareSource` disables HTTPClient keep-alive reuse (`setReuse(false)`), because a reused
+socket carried the wrong host or leftover body bytes into the next download. OTA code logs through
+`src/network/NetworkLog.h`.
 
 Verification:
 
@@ -427,6 +431,18 @@ Verification:
   server to prove the 30s timeout, and finally a valid install of a freshly published build that
   boots from `app1`. The boot partition is printed before and after each failure case. Measure the
   real erase and stream times for the full firmware.
+- Measured on hardware (PR #59, 1779728 B image, built at 21c9bb3), all spike cases passing:
+  - Erase: 2156, 6874, 6804, 2013 and 2884 ms across the five installs. The spread is unexplained.
+    None came near a watchdog.
+  - Valid install: 11322 ms total, about 7.9 s of streaming at about 224 KB/s.
+  - Stalled server: gave up 30015 ms after the last progress report, so the 30s timeout reaches
+    `readBytes`.
+  - Mid-stream WiFi drop: stopped at 526731 bytes, about 30 s after the drop.
+  - Tampered signature: rejected with ret -19968. Tampered SHA-256 is also rejected. The boot
+    partition stayed `app0` after every failure.
+  - The valid install booted from `app1` and logged `Firmware version: 21c9bb3`.
+  - Firmware size after D2: 1779495 B (90%). The growth from 1758455 B came from the precip forecast
+    work on master, not D2.
 
 Depends on C1, C2, C3.
 
