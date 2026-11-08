@@ -5,3 +5,4 @@
 add_subdirectory(OtaUpdate)
 add_subdirectory(WakeButton)
 add_subdirectory(OtaCheck)
+add_subdirectory(OtaInstall)
