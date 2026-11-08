@@ -9,6 +9,8 @@ static const uint16_t READ_TIMEOUT_MS = 30000;
 
 bool HttpFirmwareSource::open(const char* url) {
     m_http.setTimeout(READ_TIMEOUT_MS);
+    // One-shot multi-MB download: reuse would carry a half-read body or the wrong host into the next open.
+    m_http.setReuse(false);
     if (!m_http.begin(url)) {
         NET_LOG_WARNING("OTA firmware URL rejected: %s", url);
         return false;
