@@ -24,11 +24,13 @@ add_executable(unit_tests
     PrecipForecastTest.cpp
     BatteryMeterTest.cpp
     OTAManagerTest.cpp
+    FirmwareInstallerTest.cpp
     ../../src/security/CACerts.cpp
     ../../src/network/CurrentConditions.cpp
     ../../src/network/PrecipForecast.cpp
     ../../src/display/BatteryMeter.cpp
     ../../src/ota/OTAManager.cpp
+    ../../src/ota/FirmwareInstaller.cpp
 )
 
 target_include_directories(unit_tests PRIVATE
