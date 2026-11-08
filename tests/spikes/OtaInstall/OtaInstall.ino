@@ -115,10 +115,16 @@ void setup() {
     } else {
         info = published;
         strcpy(info.url, OTA_STALL_URL);
+        lastProgressMs = 0;
         expectRejectedInstall("stalled server", info, printProgress);
-        uint32_t stallMs = millis() - lastProgressMs;
-        Serial.printf("stalled server: gave up %lu ms after the last progress report\n", (unsigned long)stallMs);
-        check(stallMs >= STALL_MIN_MS && stallMs <= STALL_MAX_MS, "stall ended by the 30s read timeout");
+        if (lastProgressMs == 0) {
+            check(false, "stalled server reached the stall point");
+        } else {
+            check(true, "stalled server reached the stall point");
+            uint32_t stallMs = millis() - lastProgressMs;
+            Serial.printf("stalled server: gave up %lu ms after the last progress report\n", (unsigned long)stallMs);
+            check(stallMs >= STALL_MIN_MS && stallMs <= STALL_MAX_MS, "stall ended by the 30s read timeout");
+        }
     }
 
     info = published;
