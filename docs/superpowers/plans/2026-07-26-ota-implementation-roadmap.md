@@ -390,7 +390,7 @@ Components, in `src/ota/`:
 | `IFirmwareSource` | `open(url)`, `read(buf, len)` returning bytes read, `close()` | interface only |
 | `IOtaPartition` | `begin()`, `write(buf, len)`, `end()`, `abort()`, `setBoot()` | interface only |
 | `IImageVerifier` | `begin()`, `update(buf, len)`, `verify(sha256Hex, signatureB64)` | interface only |
-| `HttpFirmwareSource` | `HTTPClient` with a 30s timeout | no |
+| `HttpFirmwareSource` | `HTTPClient`; 30s inactivity timeout plus a 5-minute whole-download deadline | no |
 | `EspOtaPartition` | `esp_ota_ops.h` only; next update partition, `OTA_SIZE_UNKNOWN` | no |
 | `EcdsaImageVerifier` | mbedtls SHA-256, then `mbedtls_pk_verify` with `OTA_PUBLIC_KEY_DER` (the C2 contract) | no |
 
@@ -428,7 +428,8 @@ Verification:
   each abort and never call `end`; `end` and `setBoot` failures return false without `abort`.
 - Hardware spike `tests/spikes/OtaInstall`, using the real implementations: tampered SHA-256,
   tampered signature, a mid-stream drop (`WiFi.disconnect()` from the progress callback), a stalled
-  server to prove the 30s timeout, and finally a valid install of a freshly published build that
+  server to prove the 30s timeout, a server that drips one byte a second to prove the download
+  deadline, and finally a valid install of a freshly published build that
   boots from `app1`. The boot partition is printed before and after each failure case. Measure the
   real erase and stream times for the full firmware.
 - Measured on hardware (issue #59, 1779728 B image, built at 21c9bb3), all spike cases passing:
@@ -437,6 +438,13 @@ Verification:
   - Valid install: 11322 ms total, about 7.9 s of streaming at about 224 KB/s.
   - Stalled server: gave up 30015 ms after the last progress report, so the 30s timeout reaches
     `readBytes`.
+  - PR #81 review: `NetworkClient::readBytes` restarts its timeout whenever a byte arrives, so a
+    server trickling one byte every 29 s could hold the radio on for hours. `HttpFirmwareSource`
+    now reads in its own loop that enforces both the 30s inactivity timeout and a whole-download
+    deadline (5 minutes; a normal download streams in about 8 s). Rerun with a 45 s spike deadline:
+    the dripping server was cut off at 45003 ms, and the stalled server still gave up after
+    30015 ms. The same review made `EcdsaImageVerifier` fail verification on any mbedtls SHA-256
+    error, which it used to ignore.
   - Mid-stream WiFi drop: stopped at 526731 bytes, about 30 s after the drop.
   - Tampered signature: rejected with ret -19968. Tampered SHA-256 is also rejected. The boot
     partition stayed `app0` after every failure.

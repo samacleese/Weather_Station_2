@@ -1,13 +1,15 @@
-// ABOUTME: Streams a firmware image over plain HTTP from the local json-store with a 30s read timeout.
-// ABOUTME: Device-only implementation of IFirmwareSource; a stalled or dropped connection ends as a short read.
+// ABOUTME: Streams a firmware image over plain HTTP from the local json-store, bounded by a 30s inactivity
+// ABOUTME: timeout and a whole-download deadline. Device-only IFirmwareSource; a stall ends as a short read.
 #include "HttpFirmwareSource.h"
 
 #include "../network/NetworkLog.h"
 
-// Long enough to ride out WiFi hiccups, short enough that a dead server can't keep the radio on for long.
+// Inactivity timeout: long enough to ride out WiFi hiccups, short enough that a dead server can't keep the
+// radio on for long. It also bounds the GET's wait for response headers.
 static const uint16_t READ_TIMEOUT_MS = 30000;
 
 bool HttpFirmwareSource::open(const char* url) {
+    m_openedMs = millis();
     m_http.setTimeout(READ_TIMEOUT_MS);
     // One-shot multi-MB download: reuse would carry a half-read body or the wrong host into the next open.
     m_http.setReuse(false);
@@ -27,8 +29,30 @@ bool HttpFirmwareSource::open(const char* url) {
 
 size_t HttpFirmwareSource::read(uint8_t* buf, size_t len) {
     if (m_stream == nullptr) return 0;
-    // readBytes blocks until len bytes arrive or the stream timeout expires.
-    return m_stream->readBytes(buf, len);
+    // NetworkClient::readBytes restarts its timeout whenever any byte arrives, so a server that trickles
+    // data could hold one read open for hours. This loop also enforces the whole-download deadline.
+    size_t got = 0;
+    uint32_t lastDataMs = millis();
+    while (got < len) {
+        uint32_t now = millis();
+        if (now - m_openedMs >= m_deadlineMs) {
+            NET_LOG_WARNING("OTA download passed its %d ms deadline", (int)m_deadlineMs);
+            break;
+        }
+        int n = m_stream->read(buf + got, len - got);  // non-blocking: 0 means no data yet
+        if (n < 0) break;
+        if (n > 0) {
+            got += n;
+            lastDataMs = now;
+            continue;
+        }
+        if (now - lastDataMs >= READ_TIMEOUT_MS) {
+            NET_LOG_WARNING("OTA download received nothing for %d ms", (int)READ_TIMEOUT_MS);
+            break;
+        }
+        delay(2);  // let the WiFi task run
+    }
+    return got;
 }
 
 void HttpFirmwareSource::close() {

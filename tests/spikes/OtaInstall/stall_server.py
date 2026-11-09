@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# ABOUTME: Throwaway HTTP server for the OtaInstall spike (#59): answers every GET, then stalls mid-body.
-# ABOUTME: Proves HttpFirmwareSource's 30s read timeout turns a silent server into a failed install.
+# ABOUTME: Throwaway HTTP server for the OtaInstall spike (#59): answers every GET, then stalls or drips mid-body.
+# ABOUTME: Proves HttpFirmwareSource's inactivity timeout and download deadline turn a bad server into a failed install.
 """Stalling firmware server for the OtaInstall spike's timeout case.
 
 Run it on the dev machine (not in the build container) before flashing the spike:
@@ -10,8 +10,9 @@ Run it on the dev machine (not in the build container) before flashing the spike
 Then set OTA_STALL_URL in config.cmake to http://<this machine's LAN IP>:8000/firmware and re-run
 ./build.sh configure. Each GET gets 200 headers advertising the firmware file's size, the file's first
 --send-bytes bytes (real image bytes, so esp_ota_write's 0xE9 magic check passes), then nothing for
---hold-seconds before the connection closes. If the device can't connect, check that the host firewall
-allows the port.
+--hold-seconds before the connection closes. A GET whose path contains "drip" instead gets one more byte
+every --drip-seconds after the first --send-bytes, which never trips the inactivity timeout, so only the
+download deadline can end it. If the device can't connect, check that the host firewall allows the port.
 """
 
 import argparse
@@ -19,7 +20,7 @@ import http.server
 import time
 
 
-def make_handler(firmware, send_bytes, hold_seconds):
+def make_handler(firmware, send_bytes, hold_seconds, drip_seconds):
     content_length = len(firmware)
 
     class StallHandler(http.server.BaseHTTPRequestHandler):
@@ -31,9 +32,25 @@ def make_handler(firmware, send_bytes, hold_seconds):
             self.wfile.write(firmware[:send_bytes])
             self.wfile.flush()
             client = self.client_address[0]
+            if "drip" in self.path:
+                self.drip(client)
+                return
             print(f"{client}: sent {send_bytes} of {content_length} bytes, holding {hold_seconds}s", flush=True)
             time.sleep(hold_seconds)
             print(f"{client}: closing", flush=True)
+
+        def drip(self, client):
+            print(f"{client}: sent {send_bytes} of {content_length} bytes, dripping 1 byte/{drip_seconds}s", flush=True)
+            sent = send_bytes
+            try:
+                while sent < content_length:
+                    time.sleep(drip_seconds)
+                    self.wfile.write(firmware[sent : sent + 1])
+                    self.wfile.flush()
+                    sent += 1
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+            print(f"{client}: drip ended after {sent} bytes", flush=True)
 
     return StallHandler
 
@@ -53,6 +70,9 @@ def main():
         help="body bytes sent before stalling; 64KB lines up with the installer's first progress report",
     )
     parser.add_argument("--hold-seconds", type=float, default=120, help="silence before closing")
+    parser.add_argument(
+        "--drip-seconds", type=float, default=1, help="gap between bytes on a drip request (default: 1)"
+    )
     args = parser.parse_args()
 
     with open(args.firmware, "rb") as f:
@@ -60,7 +80,9 @@ def main():
     if args.send_bytes > len(firmware):
         parser.error(f"--send-bytes {args.send_bytes} exceeds firmware size {len(firmware)}")
 
-    server = http.server.HTTPServer(("0.0.0.0", args.port), make_handler(firmware, args.send_bytes, args.hold_seconds))
+    # Threaded so the drip request is served while the previous stall request is still holding.
+    handler = make_handler(firmware, args.send_bytes, args.hold_seconds, args.drip_seconds)
+    server = http.server.ThreadingHTTPServer(("0.0.0.0", args.port), handler)
     print(f"Stall server listening on port {args.port}; Ctrl-C to stop", flush=True)
     try:
         server.serve_forever()

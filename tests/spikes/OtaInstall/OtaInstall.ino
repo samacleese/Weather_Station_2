@@ -1,5 +1,5 @@
 // ABOUTME: Throwaway D2 (#59) spike: drives the real FirmwareInstaller and device implementations through
-// ABOUTME: tampered, stalled and dropped installs, then one valid install that boots from the other slot.
+// ABOUTME: tampered, stalled, dripped and dropped installs, then one valid install that boots from the other slot.
 #include <ArduinoLog.h>
 #include <WiFi.h>
 #include <esp_ota_ops.h>
@@ -20,11 +20,17 @@ static const uint32_t WIFI_TIMEOUT_MS = 20000;
 // HttpFirmwareSource's read timeout is 30s; the window allows for scheduling slop.
 static const uint32_t STALL_MIN_MS = 29000;
 static const uint32_t STALL_MAX_MS = 35000;
+// Short deadline so the drip case ends quickly. The server's 1 byte/s drip never trips the 30s inactivity
+// timeout, so only the deadline can stop it.
+static const uint32_t DRIP_DEADLINE_MS = 45000;
+static const uint32_t DRIP_SLOP_MS = 5000;
 
 static HttpFirmwareSource source;
+static HttpFirmwareSource dripSource(DRIP_DEADLINE_MS);
 static EspOtaPartition partition;
 static EcdsaImageVerifier verifier;
 static FirmwareInstaller installer(source, partition, verifier);
+static FirmwareInstaller dripInstaller(dripSource, partition, verifier);
 
 static int failures = 0;
 static uint32_t lastProgressMs = 0;
@@ -61,21 +67,24 @@ static bool reconnectWifi() {
     return true;
 }
 
-// Runs one install that must fail and checks that the boot partition did not change.
-static void expectRejectedInstall(const char* name,
-                                  const OTAManager::UpdateInfo& info,
-                                  FirmwareInstaller::ProgressFn progress) {
+// Runs one install that must fail, checks that the boot partition did not change, and returns the elapsed ms.
+static uint32_t expectRejectedInstall(const char* name,
+                                      const OTAManager::UpdateInfo& info,
+                                      FirmwareInstaller::ProgressFn progress,
+                                      FirmwareInstaller& inst = installer) {
     Serial.printf("\n--- %s ---\n", name);
     const char* before = bootLabel();
     uint32_t start = millis();
-    bool installed = installer.install(info, progress);
+    bool installed = inst.install(info, progress);
+    uint32_t elapsed = millis() - start;
     Serial.printf("%s: install=%d elapsed_ms=%lu boot before=%s after=%s\n",
                   name,
                   installed,
-                  (unsigned long)(millis() - start),
+                  (unsigned long)elapsed,
                   before,
                   bootLabel());
     check(!installed && strcmp(before, bootLabel()) == 0, name);
+    return elapsed;
 }
 
 void setup() {
@@ -125,6 +134,15 @@ void setup() {
             Serial.printf("stalled server: gave up %lu ms after the last progress report\n", (unsigned long)stallMs);
             check(stallMs >= STALL_MIN_MS && stallMs <= STALL_MAX_MS, "stall ended by the 30s read timeout");
         }
+
+        info = published;
+        static const char DRIP_QUERY[] = "?drip";
+        static_assert(sizeof(OTA_STALL_URL) + sizeof(DRIP_QUERY) - 1 <= sizeof(info.url),
+                      "OTA_STALL_URL?drip does not fit UpdateInfo::url");
+        snprintf(info.url, sizeof(info.url), "%s%s", OTA_STALL_URL, DRIP_QUERY);
+        uint32_t dripMs = expectRejectedInstall("dripping server", info, printProgress, dripInstaller);
+        check(dripMs >= DRIP_DEADLINE_MS && dripMs <= DRIP_DEADLINE_MS + DRIP_SLOP_MS,
+              "drip ended by the download deadline");
     }
 
     info = published;
