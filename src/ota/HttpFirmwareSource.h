@@ -9,7 +9,8 @@
 
 class HttpFirmwareSource : public IFirmwareSource {
    public:
-    // A normal download streams in about 8s; the default deadline only catches a server that trickles data.
+    // Bounds the body download, counted from open(). A normal download streams in about 8s; the default only
+    // catches a server that trickles data. The response headers are bounded only by the inactivity timeout.
     static const uint32_t DEFAULT_DEADLINE_MS = 5 * 60 * 1000;
 
     explicit HttpFirmwareSource(uint32_t deadlineMs = DEFAULT_DEADLINE_MS) : m_deadlineMs(deadlineMs) {}

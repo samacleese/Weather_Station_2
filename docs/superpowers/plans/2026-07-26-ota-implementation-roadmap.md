@@ -445,6 +445,11 @@ Verification:
     the dripping server was cut off at 45003 ms, and the stalled server still gave up after
     30015 ms. The same review made `EcdsaImageVerifier` fail verification on any mbedtls SHA-256
     error, which it used to ignore.
+  - Known gap, accepted (PR #81 review): `HTTPClient::GET()` restarts its timeout on every header
+    byte, so a server that trickles response headers can block `open()` before the deadline applies.
+    `WeatherNetwork::get` has the same exposure on every wake, and both talk to trusted servers.
+    Closing it for OTA alone would mean hand-writing the HTTP request and header parsing, so it is
+    tracked for the whole network layer instead (issue #82).
   - Mid-stream WiFi drop: stopped at 526731 bytes, about 30 s after the drop.
   - Tampered signature: rejected with ret -19968. Tampered SHA-256 is also rejected. The boot
     partition stayed `app0` after every failure.

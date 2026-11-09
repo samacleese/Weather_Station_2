@@ -5,7 +5,9 @@
 #include "../network/NetworkLog.h"
 
 // Inactivity timeout: long enough to ride out WiFi hiccups, short enough that a dead server can't keep the
-// radio on for long. It also bounds the GET's wait for response headers.
+// radio on for long. It is the only bound on GET(): HTTPClient restarts it on every header byte, so a server
+// that trickles headers can hold GET() open past the download deadline, which covers the body only.
+// WeatherNetwork::get has the same exposure; both talk to trusted servers. Tracked in issue #82.
 static const uint16_t READ_TIMEOUT_MS = 30000;
 
 bool HttpFirmwareSource::open(const char* url) {
