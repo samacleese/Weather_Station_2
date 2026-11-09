@@ -1,5 +1,5 @@
 // ABOUTME: Logging macros for network clients: ArduinoLog on device, no-ops in host tests.
-// ABOUTME: Lets the weather.gov clients log without pulling Arduino headers into host builds.
+// ABOUTME: Shared by the weather.gov clients and src/ota/ so they log without Arduino headers in host builds.
 #ifndef NETWORK_LOG_H
 #define NETWORK_LOG_H
 

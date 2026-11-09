@@ -1,0 +1,3 @@
+// ABOUTME: Generated settings for the OtaInstall spike, filled from config.cmake by configure_file.
+// ABOUTME: OTA_STALL_URL points at stall_server.py on the dev machine, or is empty when unset.
+#define OTA_STALL_URL "@OTA_STALL_URL@"

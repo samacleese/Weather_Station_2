@@ -11,7 +11,7 @@ class OTAManager {
    public:
     struct UpdateInfo {
         uint64_t version;     // YYYYMMDDNNN -- exceeds uint32_t, must be 64-bit
-        uint32_t size;        // informational; used for the progress display only
+        uint32_t size;        // bytes to download; the SHA-256 check covers it, so a wrong size fails verification
         char sha256[65];      // 64 hex chars + null
         char signature[200];  // base64 DER ECDSA signature (~100 chars; headroom)
         char url[128];
