@@ -1,5 +1,5 @@
 // ABOUTME: Main firmware entry point for the Weather Station.
-// ABOUTME: Initializes hardware, offers OTA updates on button wakes, fetches weather, renders display, deep-sleeps.
+// ABOUTME: Initializes hardware, offers OTA updates on button and power-on wakes, fetches weather, renders, sleeps.
 #include <ArduinoLog.h>
 #include <Inkplate.h>
 #include <inttypes.h>
@@ -139,7 +139,7 @@ static void offerFirmwareUpdate(IHttpClient& http, const IBatteryReader& battery
     OTAManager::UpdateInfo info;
     if (!otaManager.checkForUpdate(OTA_MANIFEST_URL, info)) return;
 
-    snprintf(buffer, sizeof(buffer), "Update %" PRIu64 " ready. Hold WAKE 2s to install.", info.version);
+    snprintf(buffer, sizeof(buffer), "Update %" PRIu64 ": release, then hold WAKE 2s to install.", info.version);
     Log.notice(F("%s" CR), buffer);
     drawOtaLine(Roboto_Medium.at(LAYOUT_LOADING_OTA_PROMPT_FONT_SIZE), LAYOUT_LOADING_OTA_PROMPT_X,
                 LAYOUT_LOADING_OTA_PROMPT_Y, buffer);
@@ -215,9 +215,11 @@ void setup() {
 
     network->begin();
     // Only a wake someone caused can be answered at the prompt, so timer wakes skip the check and its 30 s window.
-    // ESP_SLEEP_WAKEUP_UNDEFINED means reset or power-on rather than a deep-sleep wake.
-    esp_sleep_wakeup_cause_t wakeCause = esp_sleep_get_wakeup_cause();
-    if (wakeCause == ESP_SLEEP_WAKEUP_EXT1 || wakeCause == ESP_SLEEP_WAKEUP_UNDEFINED) {
+    // Power-on also covers the reset button, since the ESP32 reports an EN-pin reset as ESP_RST_POWERON.
+    // Watchdog, panic and brownout resets are excluded so a crash loop doesn't pay the 30 s window every boot.
+    bool buttonWake = esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT1;
+    bool poweredOn = esp_reset_reason() == ESP_RST_POWERON;
+    if (buttonWake || poweredOn) {
         offerFirmwareUpdate(*network, batteryReader);
     }
 
