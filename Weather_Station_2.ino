@@ -326,7 +326,7 @@ void setup() {
         x = 50;
         y = 150;
         display.getTextBounds(buffer, x, y, &x1, &y1, &w, &h);
-        Log.info(F("Min X = %d, Min Y = %d, Max X = %ud, Max y = %ud" CR), x1, y1, w, h);
+        Log.info(F("Min X = %d, Min Y = %d, Max X = %d, Max y = %d" CR), x1, y1, w, h);
         if (w > 1100) {
             Log.info(F("Reducing description font!" CR));
             display.setFont(Roboto_Light.at(104));
