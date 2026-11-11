@@ -45,7 +45,9 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 
 static const uint64_t COMPILED_VERSION = FIRMWARE_VERSION;
 
-Inkplate display(INKPLATE_3BIT);
+// Boots in 1-bit so the splash and OTA screens can use partialUpdate(), which 3-bit mode does not support.
+// setup() switches to 3-bit before drawing the weather screen.
+Inkplate display(INKPLATE_1BIT);
 
 char buffer[256];
 
@@ -97,7 +99,7 @@ void setup() {
     // Initialize display with loading message
     display.clearDisplay();
     display.setTextSize(1);
-    display.setTextColor(0, 7);
+    display.setTextColor(BLACK, WHITE);  // 1-bit colors; 0 would be white in this mode
     display.setFont(Roboto_Medium.at(LAYOUT_LOADING_MESSAGE_FONT_SIZE));
     display.setCursor(LAYOUT_LOADING_MESSAGE_X, LAYOUT_LOADING_MESSAGE_Y);
     display.print("Weather Station Loading...");
@@ -116,6 +118,7 @@ void setup() {
     // Update weather with retry capability
     int updateResult = curr.update(3);  // Try up to 3 times
 
+    display.selectDisplayMode(INKPLATE_3BIT);
     display.clearDisplay();
 
     // Handle error cases with user feedback
