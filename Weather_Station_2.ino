@@ -1,5 +1,5 @@
 // ABOUTME: Main firmware entry point for the Weather Station.
-// ABOUTME: Initializes hardware, fetches weather, renders display, then deep-sleeps.
+// ABOUTME: Initializes hardware, offers OTA updates on button wakes, fetches weather, renders display, deep-sleeps.
 #include <ArduinoLog.h>
 #include <Inkplate.h>
 #include <inttypes.h>
@@ -214,7 +214,12 @@ void setup() {
     display.display();
 
     network->begin();
-    offerFirmwareUpdate(*network, batteryReader);
+    // Only a wake someone caused can be answered at the prompt, so timer wakes skip the check and its 30 s window.
+    // ESP_SLEEP_WAKEUP_UNDEFINED means reset or power-on rather than a deep-sleep wake.
+    esp_sleep_wakeup_cause_t wakeCause = esp_sleep_get_wakeup_cause();
+    if (wakeCause == ESP_SLEEP_WAKEUP_EXT1 || wakeCause == ESP_SLEEP_WAKEUP_UNDEFINED) {
+        offerFirmwareUpdate(*network, batteryReader);
+    }
 
     SystemClock clock;
     CurrentConditions curr(*network, clock, WEATHER_STATION_ID);
