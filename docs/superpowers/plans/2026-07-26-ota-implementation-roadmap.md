@@ -79,7 +79,7 @@ the button-confirm safety requirement, and the local-network threat model.
 | ✅ | C4 | #57 | Spike: GPIO 36 poll during active operation |
 | ✅ | D1 | #58 | `OTAManager::checkForUpdate` with host tests |
 | ✅ | D2 | #59 | `FirmwareInstaller::install` (the spec's `performUpdate`) |
-| ❌ | D3 | #60 | Sketch integration and button confirmation |
+| ✅ | D3 | #60 | Sketch integration and button confirmation |
 | ❌ | D4 | #61 | End-to-end verification and negative tests |
 | ❌ | E1 | #39, #20 | Build-time font generation, used sizes only *(existing issues)* |
 | ❌ | E2 | #14 | Build-time kitty image generation *(existing issue)* |
@@ -477,6 +477,58 @@ Implementation notes that will otherwise bite:
 - New layout fields go through all four files per the layout convention in `CLAUDE.md`: `layout.json`, `cmake/Layout.cmake`, `src/layout.h.in`, and `tools/layout-editor/index.html`.
 
 Depends on D1, D2, C4.
+
+**Done 2026-11-11** on hardware (detailed plan: `docs/superpowers/plans/2026-11-11-d3-ota-sketch-integration.md`).
+Corrections to the notes above: the check does not run on every wake. Updates are offered only on a
+WAKE-button (ext1) wake or a reset/power-on wake; timer wakes skip the manifest fetch, because a 30 s
+prompt window on every timer wake roughly tripled per-wake energy. The manifest fetch is a single
+attempt with no retries (a down Pi cost up to ~20 s of radio time per wake).
+
+What was built:
+
+- The splash and OTA screens draw in 1-bit mode and refresh with `partialUpdate()`; the weather
+  screen switches to 3-bit. Jesse saw no visible difference in the weather screen.
+- `UpdateConfirmation` needs WAKE released at least once before a 2 s hold counts, so a button that is
+  already down from the wake press (or held through the prompt) can't confirm. The prompt is static,
+  with no countdown, and times out after 30 s.
+- The battery gate compares `InkplateBatteryReader::readVoltage()` against `min_battery_mv` in whole
+  millivolts, at confirmation time.
+- Refusal and failure messages ("Battery too low to update", "Update failed") stay on screen 5 s, then
+  the normal weather cycle runs.
+- Download progress redraws every 25 points (the plan said 10). Callbacks arrive every 64 KB, about
+  3.7%, so the screen shows the actual values 0/25/51/76/100.
+
+InkplateLibrary facts (from the D3 plan):
+
+- `initializeFramebuffers()` allocates both the 1-bit and 3-bit buffers in PSRAM regardless of mode, so
+  switching at runtime is safe.
+- `partialUpdate()` is a no-op in 3-bit mode.
+- Every 10th partial update is forced to a full refresh.
+- In 1-bit mode `BLACK` is 1 and `WHITE` is 0 (3-bit: black 0, white 7).
+
+Acceptance (device on `/dev/ttyUSB0`, test image VERSION 20261111001, 1,792,944 B):
+
+| Case | Result |
+|---|---|
+| No update available, reset wake | "No firmware update available", normal cycle |
+| Update available, no hold | prompt, skipped after 30 s, weather fetched (WiFi survived the window) |
+| Short presses only | skipped after 30 s |
+| WAKE held from splash through prompt, released ~10 s after | not confirmed, skipped |
+| Low battery (manifest min 5000 mV) | "Battery too low to update (4294 mV, needs 5000 mV)", 5 s, weather; no erase |
+| Install failure (binary swapped on the Pi) | download ran, "SHA-256 does not match the manifest", running firmware kept, "Update failed", 5 s, weather |
+| Successful install from a reset wake | erase 6.8 s, installed, restarted, new build reports no update |
+| Timer wake with update published | no manifest fetch, no prompt |
+| Real deep-sleep wake via WAKE, then 2 s hold | confirmed, erase 6.7 s, installed, restarted on the new build |
+
+Measurements:
+
+- One partial refresh: ~505 ms. The forced full refresh (every 10th partial): 1615 ms.
+- Full-slot erase: 6.7-6.8 s (D2 saw 2-7 s).
+- At 10% steps the 11 download redraws added ~6.7 s to ~8 s of streaming, hence 25%.
+- Final firmware: 1,792,699 B, 91.2% of the 1,966,080 B slot.
+
+Known gap, not fixed: `min_battery_mv` comes only from the plain-HTTP manifest (the image is signed,
+the manifest is not). A compiled-in floor would make the gate independent of the manifest.
 
 ### D4. End-to-end verification
 

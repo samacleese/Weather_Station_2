@@ -12,7 +12,9 @@
     },
     "loading": {
       "message":      { "x": 300, "y": 350, "font_size": 35  },
-      "version":      { "x": 300, "y": 395, "font_size": 14  }
+      "version":      { "x": 300, "y": 395, "font_size": 14  },
+      "ota_prompt":   { "x": 300, "y": 470, "font_size": 29  },
+      "ota_status":   { "x": 300, "y": 530, "font_size": 24  }
     }
   }
 }
