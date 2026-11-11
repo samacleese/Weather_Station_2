@@ -711,7 +711,7 @@ If the measured refresh time makes the download noticeably slower (for example, 
   - the 1-bit splash and its library facts (both buffers allocated, partials every 10th forced full, BLACK=1)
   - the release-before-hold rule
   - the 5 s message hold
-  - the 10-point progress throttle
+  - the 25-point progress throttle (10 in the original plan)
   - the measured refresh time and install time from Task 6
   - the final firmware size
 - [ ] **Step 2: `CLAUDE.md`.** In the Architecture flow, change `init display → WiFi → NTP → fetch weather` to `init display (1-bit splash) → WiFi → NTP → OTA check (prompt + 2 s WAKE hold if newer firmware is published) → fetch weather (3-bit from here)`.
