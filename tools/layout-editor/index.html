@@ -126,6 +126,8 @@ const SAMPLE_TEXT = {
   warnings:     'Warning: timeout',
   message:      'Weather Station Loading...',
   version:      'a1b2c3d',
+  ota_prompt:   'Update 20261111001 ready. Hold WAKE 2s to install.',
+  ota_status:   'Battery 82%. Skips in 30s if not held.',
 };
 
 // Whether element uses bold or light weight (fixed in firmware)
@@ -142,6 +144,8 @@ const IS_BOLD = {
   loading: {
     message: true,
     version: false,
+    ota_prompt: true,
+    ota_status: false,
   },
 };
 
@@ -158,6 +162,8 @@ const FONT_WEIGHT_LABEL = {
   loading: {
     message: 'Roboto_Medium',
     version: 'Roboto_Light',
+    ota_prompt: 'Roboto_Medium',
+    ota_status: 'Roboto_Light',
   },
 };
 
@@ -177,6 +183,8 @@ const DEFAULT_LAYOUT = {
     loading: {
       message: { x: 300, y: 350, font_size: 35 },
       version: { x: 300, y: 395, font_size: 14 },
+      ota_prompt: { x: 300, y: 470, font_size: 29 },
+      ota_status: { x: 300, y: 530, font_size: 24 },
     },
   },
 };

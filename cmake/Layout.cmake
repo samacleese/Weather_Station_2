@@ -48,4 +48,14 @@ string(JSON LAYOUT_LOADING_VERSION_X         GET ${LAYOUT_JSON} screens loading 
 string(JSON LAYOUT_LOADING_VERSION_Y         GET ${LAYOUT_JSON} screens loading version y)
 string(JSON LAYOUT_LOADING_VERSION_FONT_SIZE GET ${LAYOUT_JSON} screens loading version font_size)
 
+# Loading screen — OTA update prompt
+string(JSON LAYOUT_LOADING_OTA_PROMPT_X         GET ${LAYOUT_JSON} screens loading ota_prompt x)
+string(JSON LAYOUT_LOADING_OTA_PROMPT_Y         GET ${LAYOUT_JSON} screens loading ota_prompt y)
+string(JSON LAYOUT_LOADING_OTA_PROMPT_FONT_SIZE GET ${LAYOUT_JSON} screens loading ota_prompt font_size)
+
+# Loading screen — OTA status line (battery, progress, result)
+string(JSON LAYOUT_LOADING_OTA_STATUS_X         GET ${LAYOUT_JSON} screens loading ota_status x)
+string(JSON LAYOUT_LOADING_OTA_STATUS_Y         GET ${LAYOUT_JSON} screens loading ota_status y)
+string(JSON LAYOUT_LOADING_OTA_STATUS_FONT_SIZE GET ${LAYOUT_JSON} screens loading ota_status font_size)
+
 configure_file(src/layout.h.in ${CMAKE_BINARY_DIR}/generated/weather_station_2/layout.h)
