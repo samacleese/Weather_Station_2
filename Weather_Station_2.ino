@@ -70,7 +70,7 @@ static const uint8_t WAKE_BUTTON_PIN = 36;
 static const unsigned long BUTTON_POLL_MS = 100;
 // Long enough to read a refusal or failure before the weather screen replaces it.
 static const unsigned long OTA_MESSAGE_HOLD_MS = 5000;
-static const int PROGRESS_STEP_PERCENT = 10;
+static const int PROGRESS_STEP_PERCENT = 25;
 
 // Draws "Precip:  Today 1%  Tue 0%  Wed 87%❄ ..." along the bottom of the screen.
 static void drawPrecipForecast(const PrecipForecast& forecast, int result) {
@@ -111,7 +111,7 @@ static void drawOtaLine(const GFXfont* font, int16_t x, int16_t y, const char* t
 static void refreshOtaScreen() {
     unsigned long startMs = millis();
     display.partialUpdate();
-    Log.notice(F("OTA screen refresh took %lu ms" CR), millis() - startMs);
+    Log.notice(F("OTA screen refresh took %u ms" CR), millis() - startMs);
 }
 
 static void showOtaStatus(const char* text) {
