@@ -80,3 +80,14 @@ TEST(UpdateConfirmationTest, WindowStartsAtFirstSample) {
     EXPECT_EQ(UpdateConfirmation::WAITING, feed(confirmation, false, 50000, 79900));
     EXPECT_EQ(UpdateConfirmation::TIMED_OUT, confirmation.sample(false, 80000));
 }
+
+TEST(BatteryAllowsInstallTest, AllowsReadingExactlyAtThreshold) {
+    // 3.6f is 3.5999999 in binary; a plain volts * 1000 >= mV comparison would wrongly refuse it.
+    EXPECT_TRUE(batteryAllowsInstall(3.6f, 3600));
+}
+
+TEST(BatteryAllowsInstallTest, RefusesReadingBelowThreshold) { EXPECT_FALSE(batteryAllowsInstall(3.59f, 3600)); }
+
+TEST(BatteryAllowsInstallTest, AllowsReadingAboveThreshold) { EXPECT_TRUE(batteryAllowsInstall(4.1f, 3600)); }
+
+TEST(BatteryAllowsInstallTest, RefusesZeroReading) { EXPECT_FALSE(batteryAllowsInstall(0.0f, 3600)); }

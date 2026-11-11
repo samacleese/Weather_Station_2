@@ -1,5 +1,5 @@
 // ABOUTME: Decides whether the person at the device confirmed an OTA install by holding WAKE for 2 seconds.
-// ABOUTME: Pure logic fed with button samples and timestamps, so host tests cover every confirmation path.
+// ABOUTME: Also holds the battery gate. Both are pure logic, so host tests cover every confirmation path.
 #ifndef UPDATE_CONFIRMATION_H
 #define UPDATE_CONFIRMATION_H
 
@@ -21,5 +21,9 @@ class UpdateConfirmation {
     unsigned long m_windowStartMs = 0;
     unsigned long m_holdStartMs = 0;
 };
+
+// True when a battery reading in volts meets the manifest's min_battery_mv. The reading is rounded to whole
+// millivolts first, so float error can't refuse a reading that is exactly at the threshold.
+bool batteryAllowsInstall(float volts, int minBatteryMv);
 
 #endif  // UPDATE_CONFIRMATION_H

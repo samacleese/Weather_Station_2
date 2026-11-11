@@ -2,6 +2,8 @@
 // ABOUTME: See UpdateConfirmation.h for the confirmation rules.
 #include "UpdateConfirmation.h"
 
+#include <cmath>
+
 UpdateConfirmation::Result UpdateConfirmation::sample(bool pressed, unsigned long nowMs) {
     if (!m_started) {
         m_started = true;
@@ -23,3 +25,5 @@ UpdateConfirmation::Result UpdateConfirmation::sample(bool pressed, unsigned lon
     if (nowMs - m_windowStartMs >= WINDOW_MS) return TIMED_OUT;
     return WAITING;
 }
+
+bool batteryAllowsInstall(float volts, int minBatteryMv) { return std::lround(volts * 1000.0f) >= minBatteryMv; }
