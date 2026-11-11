@@ -17,6 +17,9 @@
 3. **Release before hold.** A hold only counts after WAKE has been seen released since the prompt appeared. A stuck button, or one still held from waking the device, can't confirm.
 4. **5-second message hold.** The "battery too low" and "update failed" messages stay up for 5 s before the sketch falls through to the weather cycle.
 5. **Throttled progress.** Download progress is redrawn only when the percentage has moved 10 points or more, plus once at 100%. Each partial update blocks the download while it draws.
+6. **Person-caused wakes only.** The OTA check and prompt run only when `esp_sleep_get_wakeup_cause()` is `ESP_SLEEP_WAKEUP_EXT1` (WAKE button) or `ESP_SLEEP_WAKEUP_UNDEFINED` (reset/power-on). Timer wakes skip the manifest check. Added after the final branch review.
+
+The manifest fetch is a single attempt with no retries.
 
 ## InkplateLibrary facts this plan relies on
 
@@ -679,6 +682,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 Jesse has to be at the device for the button cases. Ask Jesse for the Pi host and the private key path. Don't guess them. The spec's example is `keys/ecdsa_private.pem` and `192.168.1.2:5000`.
 
+One forced full-screen flash during the download is expected (InkplateLibrary forces a full refresh every 10th partial update). It is not a bug.
+
 - [ ] **Step 1: Baseline.** Flash this branch: `./build.sh flash`. Check what's published with `curl -s http://<pi-host>/ota-firmware/data`. If its `version` is above the contents of `VERSION`, re-publish an older image or note that the "no update" case runs after Step 4.
 - [ ] **Step 2: No update available.** `python3 tools/serial_capture.py --seconds 60`. Expected: no `Update ... ready` log line, no prompt on the panel, a normal weather screen.
 - [ ] **Step 3: Publish a newer build.** Temporarily raise `VERSION` (e.g. `20261111001`), then `./build.sh configure && ./build.sh build`, then `python3 tools/ota_publish.py --firmware build/WeatherStation/Weather_Station_2.ino.bin --private-key <key> --pi-host <pi-host>`. Then `git checkout VERSION && ./build.sh configure && ./build.sh build && ./build.sh flash` so the device runs the lower version again.
@@ -688,7 +693,9 @@ Jesse has to be at the device for the button cases. Ask Jesse for the Pi host an
 - [ ] **Step 7: Low battery.** Re-publish the same newer build with `--min-battery-mv 5000`, reflash the lower version, hold WAKE for 2 s at the prompt. Expected: `Battery too low to update (NNNN mV, needs 5000 mV)` on screen for about 5 s, then the weather screen.
 - [ ] **Step 8: Install failure.** Re-publish with the default threshold, then overwrite only the binary with a different build (e.g. this branch's build without the VERSION bump): `curl -X PUT --data-binary @build/WeatherStation/Weather_Station_2.ino.bin http://<pi-host>/ota-firmware/binaries/firmware`. Check the endpoint against the json-store or `tools/ota_publish.py` before running it. Hold 2 s. Expected: the download progresses, then `Update failed. Continuing to weather.` for about 5 s, a normal weather screen, and the boot partition unchanged on the next boot.
 - [ ] **Step 9: Successful install.** Publish the newer build normally, hold WAKE at about 25 s into the window. Expected: progress at about 10% steps, `Update installed. Rebooting...`, a reboot, a `Firmware version:` line showing the new build, and on that boot no prompt (versions equal). Record total install time and how many refreshes ran.
-- [ ] **Step 10: Restore.** `./build.sh flash` with the committed `VERSION` so the device isn't left on a test build. Leave the Pi manifest at a version that doesn't prompt on every wake. Ask Jesse how to leave it.
+- [ ] **Step 10: Real deep-sleep wake, confirmed.** With the newer build published, let the device finish a cycle and go to deep sleep. Press WAKE to wake it, release, then hold WAKE 2 s at the prompt. Expected: it confirms (proves GPIO 36 reads correctly after an ext1 wake). Stop at the download if Step 9 has already run, or let it install.
+- [ ] **Step 11: Timer wake skips the check.** With a newer build published, leave the device alone through one 10-minute timer wake. Expected: no `Update ... ready` line in serial, no prompt, normal weather screen without the 30 s delay.
+- [ ] **Step 12: Restore.** `./build.sh flash` with the committed `VERSION` so the device isn't left on a test build. Leave the Pi manifest at a version that doesn't prompt on every wake. Ask Jesse how to leave it.
 
 If the measured refresh time makes the download noticeably slower (for example, refreshes adding more than half of the roughly 8 s stream time), tell Jesse before changing `PROGRESS_STEP_PERCENT`.
 
