@@ -184,8 +184,10 @@ int WeatherNetwork::get(const std::string& url, std::string& body) {
     int result;
 
     // Plain HTTP is for servers on the local network (the OTA manifest); everything else is TLS.
+    // The manifest is checked on a wake a person caused, and a missed check costs nothing (the next such wake checks
+    // again), while each retry adds seconds of radio-on time on a battery device. So it gets a single attempt.
     if (url.compare(0, 7, "http://") == 0) {
-        result = get(nullptr, arduino_url, stream, 2, 10000);
+        result = get(nullptr, arduino_url, stream, 0, 10000);
     } else {
         // Extract hostname from URL: "https://host/path" → "host"
         std::string hostname;
