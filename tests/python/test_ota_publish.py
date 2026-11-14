@@ -2,15 +2,14 @@
 # ABOUTME: and the HTTP upload against a real local HTTP server.
 import base64
 import hashlib
-import http.server
 import json
-import threading
 
 import pytest
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec, utils
 
+from conftest import RecordingServer
 from ota_publish import PublishError, build_manifest, publish, read_version
 
 FIRMWARE = b"\xe9" + bytes(range(256)) * 40
@@ -68,39 +67,6 @@ def test_signature_rejects_tampered_digest(private_key):
     signature = base64.b64decode(manifest["signature"])
     with pytest.raises(InvalidSignature):
         private_key.public_key().verify(signature, tampered, ec.ECDSA(utils.Prehashed(hashes.SHA256())))
-
-
-class RecordingServer:
-    """A real HTTP server on localhost that records PUTs and answers with a chosen status."""
-
-    def __init__(self, status=204):
-        self.requests = []
-        recorder = self
-
-        class Handler(http.server.BaseHTTPRequestHandler):
-            def do_PUT(self):
-                body = self.rfile.read(int(self.headers["Content-Length"]))
-                recorder.requests.append((self.path, self.headers["Content-Type"], body))
-                self.send_response(status)
-                self.end_headers()
-
-            def log_message(self, *args):
-                pass
-
-        self.httpd = http.server.HTTPServer(("127.0.0.1", 0), Handler)
-        self.host = f"127.0.0.1:{self.httpd.server_address[1]}"
-        threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
-
-    def close(self):
-        self.httpd.shutdown()
-        self.httpd.server_close()
-
-
-@pytest.fixture
-def server():
-    s = RecordingServer()
-    yield s
-    s.close()
 
 
 def test_publish_uploads_binary_before_manifest(server, private_key):
