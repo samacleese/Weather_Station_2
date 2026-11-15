@@ -31,8 +31,7 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 #include "src/network/CurrentConditions.h"
 #include "src/network/PrecipForecast.h"
 #include "src/display/DisplayLocations.h"
-#include "assets/fonts/Roboto_Light.h"
-#include "assets/fonts/Roboto_Medium.h"
+#include "assets/fonts/RobotoFont.h"
 #include "src/display/Kitties.h"
 #include "src/display/KittyPics.h"
 #include "src/display/Snowflake.h"
@@ -74,7 +73,7 @@ static const int PROGRESS_STEP_PERCENT = 25;
 
 // Draws "Precip:  Today 1%  Tue 0%  Wed 87%❄ ..." along the bottom of the screen.
 static void drawPrecipForecast(const PrecipForecast& forecast, int result) {
-    display.setFont(Roboto_Medium.at(LAYOUT_MAIN_PRECIP_FORECAST_FONT_SIZE));
+    display.setFont(ROBOTO_FONT(Medium, LAYOUT_MAIN_PRECIP_FORECAST_FONT_SIZE));
     display.setCursor(LAYOUT_MAIN_PRECIP_FORECAST_X, LAYOUT_MAIN_PRECIP_FORECAST_Y);
     if (result != PRECIP_FORECAST_OK) {
         display.print("Precip forecast unavailable");
@@ -115,7 +114,7 @@ static void refreshOtaScreen() {
 }
 
 static void showOtaStatus(const char* text) {
-    drawOtaLine(Roboto_Light.at(LAYOUT_LOADING_OTA_STATUS_FONT_SIZE), LAYOUT_LOADING_OTA_STATUS_X,
+    drawOtaLine(ROBOTO_FONT(Light, LAYOUT_LOADING_OTA_STATUS_FONT_SIZE), LAYOUT_LOADING_OTA_STATUS_X,
                 LAYOUT_LOADING_OTA_STATUS_Y, text);
     refreshOtaScreen();
 }
@@ -141,7 +140,7 @@ static void offerFirmwareUpdate(IHttpClient& http, const IBatteryReader& battery
 
     snprintf(buffer, sizeof(buffer), "Update %" PRIu64 ": release, then hold WAKE 2s to install.", info.version);
     Log.notice(F("%s" CR), buffer);
-    drawOtaLine(Roboto_Medium.at(LAYOUT_LOADING_OTA_PROMPT_FONT_SIZE), LAYOUT_LOADING_OTA_PROMPT_X,
+    drawOtaLine(ROBOTO_FONT(Medium, LAYOUT_LOADING_OTA_PROMPT_FONT_SIZE), LAYOUT_LOADING_OTA_PROMPT_X,
                 LAYOUT_LOADING_OTA_PROMPT_Y, buffer);
     snprintf(buffer, sizeof(buffer), "Battery %d%%. Skips in 30s if not held.",
              BatteryMeter::voltageToPercent(batteryReader.readVoltage()));
@@ -205,10 +204,10 @@ void setup() {
     display.clearDisplay();
     display.setTextSize(1);
     display.setTextColor(BLACK, WHITE);  // 1-bit colors; 0 would be white in this mode
-    display.setFont(Roboto_Medium.at(LAYOUT_LOADING_MESSAGE_FONT_SIZE));
+    display.setFont(ROBOTO_FONT(Medium, LAYOUT_LOADING_MESSAGE_FONT_SIZE));
     display.setCursor(LAYOUT_LOADING_MESSAGE_X, LAYOUT_LOADING_MESSAGE_Y);
     display.print("Weather Station Loading...");
-    display.setFont(Roboto_Light.at(LAYOUT_LOADING_VERSION_FONT_SIZE));
+    display.setFont(ROBOTO_FONT(Light, LAYOUT_LOADING_VERSION_FONT_SIZE));
     display.setCursor(LAYOUT_LOADING_VERSION_X, LAYOUT_LOADING_VERSION_Y);
     display.print(GIT_VERSION);
     display.display();
@@ -239,7 +238,7 @@ void setup() {
         // Show error message on display
         display.setTextSize(1);
         display.setTextColor(0, 7);
-        display.setFont(Roboto_Light.at(14));
+        display.setFont(ROBOTO_FONT(Light, 14));
         display.setCursor(100, 370);
         sprintf(buffer, "Weather data error: %s", curr.getErrorString(updateResult));
         display.print(buffer);
@@ -273,7 +272,7 @@ void setup() {
             int temperature = display.readTemperature();
             float voltage = batteryReader.readVoltage();
 
-            display.setFont(Roboto_Light.at(42));
+            display.setFont(ROBOTO_FONT(Light, 42));
             display.setCursor(860, 400);
             display.print(BatteryMeter::voltageToPercent(voltage));
             display.print('%');
@@ -299,7 +298,7 @@ void setup() {
     // Draw Temperature with validity check
     display.setTextSize(1);
     display.setTextColor(0, 7);
-    display.setFont(Roboto_Medium.at(LAYOUT_MAIN_TEMPERATURE_FONT_SIZE));
+    display.setFont(ROBOTO_FONT(Medium, LAYOUT_MAIN_TEMPERATURE_FONT_SIZE));
     display.setCursor(LAYOUT_MAIN_TEMPERATURE_X, LAYOUT_MAIN_TEMPERATURE_Y);
     if (curr.temperature != -999) {
         sprintf(buffer, "%d C", curr.temperature);
@@ -309,7 +308,7 @@ void setup() {
     display.print(buffer);
 
     // Draw Windspeed with validity check
-    display.setFont(Roboto_Medium.at(LAYOUT_MAIN_WIND_SPEED_FONT_SIZE));
+    display.setFont(ROBOTO_FONT(Medium, LAYOUT_MAIN_WIND_SPEED_FONT_SIZE));
     display.setCursor(LAYOUT_MAIN_WIND_SPEED_X, LAYOUT_MAIN_WIND_SPEED_Y);
     if (curr.wind_speed != -999) {
         sprintf(buffer, "%d km/h", curr.wind_speed);
@@ -319,7 +318,7 @@ void setup() {
     display.print(buffer);
 
     // Weather description
-    display.setFont(Roboto_Light.at(LAYOUT_MAIN_DESCRIPTION_FONT_SIZE));
+    display.setFont(ROBOTO_FONT(Light, LAYOUT_MAIN_DESCRIPTION_FONT_SIZE));
     display.setCursor(LAYOUT_MAIN_DESCRIPTION_X, LAYOUT_MAIN_DESCRIPTION_Y);
     sprintf(buffer, "%s", curr.description);
     {
@@ -331,7 +330,7 @@ void setup() {
         Log.info(F("Min X = %d, Min Y = %d, Max X = %d, Max y = %d" CR), x1, y1, w, h);
         if (w > 1100) {
             Log.info(F("Reducing description font!" CR));
-            display.setFont(Roboto_Light.at(104));
+            display.setFont(ROBOTO_FONT(Light, 104));
         }
     }
     display.print(buffer);
@@ -349,7 +348,7 @@ void setup() {
     voltage = batteryReader.readVoltage();
 
     // Display system info
-    display.setFont(Roboto_Light.at(LAYOUT_MAIN_BATTERY_INFO_FONT_SIZE));
+    display.setFont(ROBOTO_FONT(Light, LAYOUT_MAIN_BATTERY_INFO_FONT_SIZE));
     display.setCursor(LAYOUT_MAIN_BATTERY_INFO_X, LAYOUT_MAIN_BATTERY_INFO_Y);
     display.print(BatteryMeter::voltageToPercent(voltage));
     display.print('%');
@@ -359,7 +358,7 @@ void setup() {
 
     // If there was a warning but we have data, show it
     if (updateResult != CURRENT_CONDITIONS_OK) {
-        display.setFont(Roboto_Light.at(LAYOUT_MAIN_WARNINGS_FONT_SIZE));
+        display.setFont(ROBOTO_FONT(Light, LAYOUT_MAIN_WARNINGS_FONT_SIZE));
         display.setCursor(LAYOUT_MAIN_WARNINGS_X, LAYOUT_MAIN_WARNINGS_Y);
         display.print("Warning: ");
         display.print(curr.getErrorString(updateResult));
