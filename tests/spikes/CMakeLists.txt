@@ -1,8 +1,3 @@
 # CMakeLists.txt
-# ABOUTME: Throwaway hardware spike sketches for the OTA roadmap's Tracks C and D.
-# ABOUTME: Each answers one feasibility question and is deleted once OTAManager replaces it.
-
-add_subdirectory(OtaUpdate)
-add_subdirectory(WakeButton)
-add_subdirectory(OtaCheck)
-add_subdirectory(OtaInstall)
+# ABOUTME: Throwaway hardware spike sketches, each answering one feasibility question on the device.
+# ABOUTME: Add one with add_subdirectory(<Name>); build with ./build.sh build-spike <Name>. Delete when done.
