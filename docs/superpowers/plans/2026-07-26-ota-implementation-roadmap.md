@@ -576,7 +576,7 @@ D4 hardware results (device on `/dev/ttyUSB0`; baseline 20261112001, test images
 | 2c Missing `signature` | pass: "OTA manifest signature is missing, empty or too long" |
 | 2c Missing `url` | pass: "OTA manifest url is missing, empty or too long" |
 | 2d WiFi drop (AP radio off for 45 s, started during the erase) | pass: erased `app1` in 6633 ms, "OTA download received nothing for 30000 ms", "OTA download stopped at 6899 of 1792960 bytes", "OTA install failed", screen stayed at 0% and then showed "Update failed". The weather fetch then hit the AP still down and showed the network-error screen, with no hang or crash. A following boot without the hold skipped the update and fetched weather |
-| 2e First install (20261114001) | pass: erased `app1` in 1915 ms, "OTA image installed", restarted. The restart boot skipped the OTA check, because a software reset is not a WAKE or power-on wake |
+| 2e First install (20261114001) | pass: Jesse missed the first 30 s window (skipped), then woke the device with WAKE from deep sleep (ext1, DEEPSLEEP_RESET) and held. It erased `app1` in 1915 ms, "OTA image installed", restarted. The restart boot skipped the OTA check, because a software reset is not a WAKE or power-on wake |
 | 2f Second install (20261114002) | pass: the prompt for 20261114002 showed, so 20261114001 was running. Erased `app0` in 6448 ms, installed, restarted |
 | 2g Same version | pass: "No firmware update available" |
 | 2h Restore | done: master (e0d366d) rebuilt, published as 20261112001 (1,792,976 B, `ota_verify` OK) and flashed. Final boot: "Firmware version: e0d366d", "No firmware update available" |
@@ -585,11 +585,11 @@ Measurements:
 
 - Slot erase: 6751, 6633, 1915 and 6448 ms. The spread is still unexplained.
 - Slots alternated `app0` → `app1` → `app0` across the baseline and the two installs.
-- Partial refresh: 502-508 ms. Each install did 6 refreshes (prompt, then 0/25/51/76/100 and the final one).
+- Partial refresh: 502-508 ms. Each install did 7 refreshes (the prompt, 0/25/51/76/100, then "Update installed"), counted in the 2f log.
 
 Plan deviations:
 
-- 2d: the drop landed during the erase (after the hold), not "at 25%". Streaming takes only ~8 s and the AP script needs an SSH passphrase. The connection is already open during the erase, so it is still a mid-stream drop. The outage was 45 s instead of ~30 s, so the 30 s read timeout fires before the stream can recover.
+- 2d: the drop landed during the erase, just after the hold. The plan said at 25%, but streaming takes only ~8 s and the AP script needs an SSH passphrase. The connection is already open during the erase, so it is still a mid-stream drop. The outage was 45 s instead of ~30 s, so the 30 s read timeout fires before the stream can recover.
 - 2h: the Pi was restored with a fresh master build instead of `baseline.bin` (Jesse's choice), and the device was flashed with the same image.
 
 Observations, known and not fixed:
