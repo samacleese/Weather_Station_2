@@ -11290,11 +11290,3 @@ const GFXglyph Roboto_Light_125Glyphs[] PROGMEM = {
 };
 const GFXfont Roboto_Light_125 PROGMEM = {(uint8_t *)Roboto_Light_125Bitmaps, (GFXglyph *)Roboto_Light_125Glyphs, 0x20,
                                           0x7E, 147};
-
-// Created by http://oleddisplay.squix.ch/ Consider a donation
-// In case of problems make sure that you are using the font file with the correct version!
-const std::map<uint8_t, const GFXfont *> Roboto_Light PROGMEM = {
-    {12, &Roboto_Light_12},   {14, &Roboto_Light_14},   {17, &Roboto_Light_17},  {20, &Roboto_Light_20},
-    {24, &Roboto_Light_24},   {29, &Roboto_Light_29},   {35, &Roboto_Light_35},  {42, &Roboto_Light_42},
-    {50, &Roboto_Light_50},   {60, &Roboto_Light_60},   {72, &Roboto_Light_72},  {87, &Roboto_Light_87},
-    {104, &Roboto_Light_104}, {125, &Roboto_Light_125}};

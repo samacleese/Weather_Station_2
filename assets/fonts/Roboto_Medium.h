@@ -12135,19 +12135,3 @@ const GFXglyph Roboto_Medium_150Glyphs[] PROGMEM = {
 };
 const GFXfont Roboto_Medium_150 PROGMEM = {
     (uint8_t *)Roboto_Medium_150Bitmaps, (GFXglyph *)Roboto_Medium_150Glyphs, 0x20, 0x7E, 177};
-
-const std::map<uint8_t, const GFXfont *> Roboto_Medium PROGMEM = {{12, &Roboto_Medium_12},
-                                                                  {14, &Roboto_Medium_14},
-                                                                  {17, &Roboto_Medium_17},
-                                                                  {20, &Roboto_Medium_20},
-                                                                  {24, &Roboto_Medium_24},
-                                                                  {29, &Roboto_Medium_29},
-                                                                  {35, &Roboto_Medium_35},
-                                                                  {42, &Roboto_Medium_42},
-                                                                  {50, &Roboto_Medium_50},
-                                                                  {60, &Roboto_Medium_60},
-                                                                  {72, &Roboto_Medium_72},
-                                                                  {87, &Roboto_Medium_87},
-                                                                  {104, &Roboto_Medium_104},
-                                                                  {125, &Roboto_Medium_125},
-                                                                  {150, &Roboto_Medium_150}};

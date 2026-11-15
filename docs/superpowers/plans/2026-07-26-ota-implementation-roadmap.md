@@ -607,10 +607,14 @@ future spikes.
 
 Independent of OTA, triggered by B3 when headroom erodes. Sequenced by whichever lands first.
 
-- **E1** — #39 and #20 together: generate fonts at build time via `fontconvert` from a declarative
-  config, emitting only the sizes referenced by `layout.json` (currently 8 of the 15 sizes compiled
-  in). Delete the committed `assets/fonts/*.h`, including three standalone headers no source file
-  includes: `Roboto_Medium_150.h`, `Roboto_Light_48.h`, `Roboto_Light_36.h`.
+- **E1** — #20 done (2026-11-15): call sites name faces with `ROBOTO_FONT(style, size)` from
+  `assets/fonts/RobotoFont.h` instead of indexing the `Roboto_Light`/`Roboto_Medium` `std::map`s,
+  whose initializers forced all 29 faces into the image. `--gc-sections` now drops the unused ones:
+  fonts went from 380,132 B to 128,967 B (9 faces) and the image from 91.2% to 78.4% of the slot.
+  The three standalone headers no source file included (`Roboto_Medium_150.h`, `Roboto_Light_48.h`,
+  `Roboto_Light_36.h`) were deleted. #39 remains: generate fonts at build time via `fontconvert`
+  from a declarative config and delete the committed `assets/fonts/Roboto_*.h`. It no longer
+  saves flash, so it is about reproducibility only.
 - **E2** — #14: generate `KittyPics` and `Kitties` at build time from the PNGs in `assets/images/`
   (~270KB of PROGMEM from 1.6MB of committed generated source).
 - **E3** — Only if E1 and E2 prove insufficient: revisit a LittleFS/PSRAM asset partition, which
