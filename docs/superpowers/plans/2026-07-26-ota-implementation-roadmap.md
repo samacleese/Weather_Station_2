@@ -80,7 +80,7 @@ the button-confirm safety requirement, and the local-network threat model.
 | ✅ | D1 | #58 | `OTAManager::checkForUpdate` with host tests |
 | ✅ | D2 | #59 | `FirmwareInstaller::install` (the spec's `performUpdate`) |
 | ✅ | D3 | #60 | Sketch integration and button confirmation |
-| ❌ | D4 | #61 | End-to-end verification and negative tests |
+| ✅ | D4 | #61 | End-to-end verification and negative tests |
 | ❌ | E1 | #39, #20 | Build-time font generation, used sizes only *(existing issues)* |
 | ❌ | E2 | #14 | Build-time kitty image generation *(existing issue)* |
 | ❌ | E3 | #62 | LittleFS/PSRAM fallback if E1+E2 insufficient |
@@ -535,7 +535,7 @@ the manifest is not). A compiled-in floor would make the gate independent of the
 | Case | Expected |
 |---|---|
 | Confirm path: publish → device detects → 2 s button hold | Flashes, restarts, boots the new firmware |
-| Skip path: device detects → no hold → 30s elapses | Falls through to normal weather display |
+| Skip path: device detects → no hold within the 30 s window | Falls through to normal weather display |
 | Tampered SHA-256 | Rejected; running partition untouched |
 | Tampered signature | Rejected; running partition untouched |
 | Battery below `min_battery_mv` | Refused with a message; falls through |
@@ -544,6 +544,62 @@ the manifest is not). A compiled-in floor would make the gate independent of the
 
 Recovery path for a bad image that does ship: reflash over USB. Automatic rollback is explicitly out
 of scope.
+
+**Done 2026-11-15** on hardware (plan: `docs/superpowers/plans/2026-11-14-d4-ota-end-to-end-verification.md`).
+D2 and D3 had already covered most of #61's matrix, so D4 ran only the gaps and cites the earlier runs
+for the rest.
+
+Coverage of #61:
+
+| #61 case | Verified in | Result |
+|---|---|---|
+| Confirm path | D3 | reset wake and real deep-sleep wake, 2 s hold, install, restart on the new build |
+| Skip path, no hold within the 30 s window | D3 | no hold, short taps and a hold through boot all skip, weather fetched |
+| Tampered `sha256` | D2 spike, D3 | "SHA-256 does not match the manifest", running firmware kept |
+| Tampered `signature` | D4 (2b) | rejected with -19968, running firmware kept |
+| Battery below `min_battery_mv` | D3 | refused with a message, no erase |
+| Missing manifest field (all six) | D4 (2c) | each one logged and treated as no update, no prompt |
+| WiFi dropped mid-stream | D4 (2d) | 30 s read timeout, install failed, weather cycle ran |
+| Same version already installed | D3, D4 (2g) | "No firmware update available" |
+| Second consecutive OTA | D4 (2e, 2f) | `app0` → `app1` → `app0` |
+| Timer wake skips the check | D3 | no manifest fetch, no prompt |
+
+D4 hardware results (device on `/dev/ttyUSB0`; baseline 20261112001, test images 20261114001 and
+20261114002, all 1,792,960 B; the faulty manifests came from `tools/ota_publish_fault.py`):
+
+| Case | Result |
+|---|---|
+| 2a Baseline, reset wake | pass: "No firmware update available", weather 200s |
+| 2b Tampered signature | pass: erased `app1` in 6751 ms, "OTA signature rejected: -19968", "OTA image failed verification; keeping the running firmware", weather 200s. A following boot without the hold skipped the update, so the old firmware was still running |
+| 2c Missing `version`, `size` or `min_battery_mv` | pass: "OTA manifest has a missing or non-integer version, size or min_battery_mv", no prompt, weather 200s |
+| 2c Missing `sha256` | pass: "OTA manifest sha256 is missing or not 64 hex chars" |
+| 2c Missing `signature` | pass: "OTA manifest signature is missing, empty or too long" |
+| 2c Missing `url` | pass: "OTA manifest url is missing, empty or too long" |
+| 2d WiFi drop (AP radio off for 45 s, started during the erase) | pass: erased `app1` in 6633 ms, "OTA download received nothing for 30000 ms", "OTA download stopped at 6899 of 1792960 bytes", "OTA install failed", screen stayed at 0% and then showed "Update failed". The weather fetch then hit the AP still down and showed the network-error screen, with no hang or crash. A following boot without the hold skipped the update and fetched weather |
+| 2e First install (20261114001) | pass: erased `app1` in 1915 ms, "OTA image installed", restarted. The restart boot skipped the OTA check, because a software reset is not a WAKE or power-on wake |
+| 2f Second install (20261114002) | pass: the prompt for 20261114002 showed, so 20261114001 was running. Erased `app0` in 6448 ms, installed, restarted |
+| 2g Same version | pass: "No firmware update available" |
+| 2h Restore | done: master (e0d366d) rebuilt, published as 20261112001 (1,792,976 B, `ota_verify` OK) and flashed. Final boot: "Firmware version: e0d366d", "No firmware update available" |
+
+Measurements:
+
+- Slot erase: 6751, 6633, 1915 and 6448 ms. The spread is still unexplained.
+- Slots alternated `app0` → `app1` → `app0` across the baseline and the two installs.
+- Partial refresh: 502-508 ms. Each install did 6 refreshes (prompt, then 0/25/51/76/100 and the final one).
+
+Plan deviations:
+
+- 2d: the drop landed during the erase (after the hold), not "at 25%". Streaming takes only ~8 s and the AP script needs an SSH passphrase. The connection is already open during the erase, so it is still a mid-stream drop. The outage was 45 s instead of ~30 s, so the 30 s read timeout fires before the stream can recover.
+- 2h: the Pi was restored with a fresh master build instead of `baseline.bin` (Jesse's choice), and the device was flashed with the same image.
+
+Observations, known and not fixed:
+
+- The log line "Can't connect to WIFI, restart initiated." (`src/network/Network.cpp:157`) is misleading. Nothing restarts: the cycle shows a network error and sleeps.
+- `WiFi.reconnect()` in `WeatherNetwork::reconnect` collided with the driver's own auto-reconnect ("sta is connecting, return error"). The reconnect window was about 12 s.
+
+`tools/ota_publish_fault.py` re-runs the negative cases (bad signature, each missing field). The four
+spikes in `tests/spikes/` that D2 and D3 used for these checks were deleted; `build-spike` stays for
+future spikes.
 
 ---
 
