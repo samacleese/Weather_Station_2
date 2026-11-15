@@ -11,6 +11,7 @@ Everything goes through `build.sh` (auto-detects podman/docker; pinned env in `C
 ./build.sh build-device-tests | flash-device-tests
 ./build.sh build-spike <Name> | flash-spike <Name>   # spikes live in tests/spikes/<Name>
 python3 tools/serial_capture.py --seconds 40         # reset + capture serial (monitor needs a TTY)
+python3 tools/firmware_size_report.py [--items 5]    # after a build: what fills the OTA slot (fonts, cats, libs)
 SERIAL_PORT=/dev/ttyACM0 ./build.sh flash            # override port
 clang-format -i src/**/*.cpp src/**/*.h              # Google style, 120 cols
 ```
