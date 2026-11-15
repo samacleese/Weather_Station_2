@@ -96,6 +96,21 @@ def load_private_key(path):
         raise PublishError(f"private key not found: {path} (generate one with tools/ota_keygen.py)")
 
 
+def load_release(firmware_path, private_key_path, pi_host, min_battery_mv):
+    """Read the firmware and build its signed manifest. Returns (firmware bytes, manifest dict)."""
+    if not firmware_path.is_file():
+        raise PublishError(f"firmware not found: {firmware_path} (run ./build.sh build first)")
+    firmware = firmware_path.read_bytes()
+    manifest = build_manifest(
+        firmware=firmware,
+        private_key=load_private_key(private_key_path),
+        version=read_version(REPO_ROOT),
+        url=binary_url(pi_host),
+        min_battery_mv=min_battery_mv,
+    )
+    return firmware, manifest
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Sign firmware and publish it with a manifest to the Pi json-store.",
@@ -116,16 +131,7 @@ def main():
     args = parser.parse_args()
 
     try:
-        if not args.firmware.is_file():
-            raise PublishError(f"firmware not found: {args.firmware} (run ./build.sh build first)")
-        firmware = args.firmware.read_bytes()
-        manifest = build_manifest(
-            firmware=firmware,
-            private_key=load_private_key(args.private_key),
-            version=read_version(REPO_ROOT),
-            url=binary_url(args.pi_host),
-            min_battery_mv=args.min_battery_mv,
-        )
+        firmware, manifest = load_release(args.firmware, args.private_key, args.pi_host, args.min_battery_mv)
         manifest_path = args.firmware.parent / "manifest.json"
         manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
         print(f"Wrote {manifest_path}: version {manifest['version']}, {manifest['size']} bytes")

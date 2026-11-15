@@ -9,8 +9,8 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec, utils
 
-from conftest import RecordingServer
-from ota_publish import PublishError, build_manifest, publish, read_version
+from conftest import RecordingServer, write_key
+from ota_publish import PublishError, build_manifest, load_release, publish, read_version
 
 FIRMWARE = b"\xe9" + bytes(range(256)) * 40
 
@@ -30,6 +30,22 @@ def make_manifest(private_key, **overrides):
     )
     args.update(overrides)
     return build_manifest(**args)
+
+
+def test_load_release_returns_firmware_and_matching_manifest(tmp_path, private_key):
+    firmware = tmp_path / "fw.bin"
+    firmware.write_bytes(FIRMWARE)
+    data, manifest = load_release(firmware, write_key(tmp_path, private_key), "pi:5000", 3700)
+    assert data == FIRMWARE
+    assert manifest["size"] == len(FIRMWARE)
+    assert manifest["sha256"] == hashlib.sha256(FIRMWARE).hexdigest()
+    assert manifest["url"] == "http://pi:5000/ota-firmware/binaries/firmware"
+    assert manifest["min_battery_mv"] == 3700
+
+
+def test_load_release_rejects_missing_firmware(tmp_path, private_key):
+    with pytest.raises(PublishError, match="firmware not found"):
+        load_release(tmp_path / "nope.bin", write_key(tmp_path, private_key), "pi:5000", 3600)
 
 
 def test_read_version_parses_integer(tmp_path):

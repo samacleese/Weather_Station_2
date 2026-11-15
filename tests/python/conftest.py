@@ -6,8 +6,20 @@ import threading
 from pathlib import Path
 
 import pytest
+from cryptography.hazmat.primitives import serialization
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "tools"))
+
+
+def write_key(tmp_path, private_key):
+    """Write an EC private key to a PKCS8 PEM in tmp_path and return its path."""
+    path = tmp_path / "key.pem"
+    path.write_bytes(
+        private_key.private_bytes(
+            serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()
+        )
+    )
+    return path
 
 
 class RecordingServer:

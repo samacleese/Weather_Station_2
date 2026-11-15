@@ -27,13 +27,9 @@ from pathlib import Path
 
 from ota_publish import (
     DEFAULT_MIN_BATTERY_MV,
-    REPO_ROOT,
     PublishError,
-    binary_url,
-    build_manifest,
-    load_private_key,
+    load_release,
     publish,
-    read_version,
 )
 
 # Every field OTAManager::checkForUpdate requires.
@@ -48,8 +44,9 @@ def apply_fault(manifest, fault):
         signature[-1] ^= 0x01
         faulty["signature"] = base64.b64encode(bytes(signature)).decode("ascii")
         return faulty
-    if fault.startswith(MISSING_PREFIX) and fault[len(MISSING_PREFIX) :] in MANIFEST_FIELDS:
-        del faulty[fault[len(MISSING_PREFIX) :]]
+    field = fault[len(MISSING_PREFIX) :]
+    if fault.startswith(MISSING_PREFIX) and field in MANIFEST_FIELDS:
+        del faulty[field]
         return faulty
     fields = ", ".join(MANIFEST_FIELDS)
     raise PublishError(f"unknown fault {fault!r}: use bad-signature or missing:<field> with field one of {fields}")
@@ -67,16 +64,7 @@ def main():
     args = parser.parse_args()
 
     try:
-        if not args.firmware.is_file():
-            raise PublishError(f"firmware not found: {args.firmware} (run ./build.sh build first)")
-        firmware = args.firmware.read_bytes()
-        manifest = build_manifest(
-            firmware=firmware,
-            private_key=load_private_key(args.private_key),
-            version=read_version(REPO_ROOT),
-            url=binary_url(args.pi_host),
-            min_battery_mv=DEFAULT_MIN_BATTERY_MV,
-        )
+        firmware, manifest = load_release(args.firmware, args.private_key, args.pi_host, DEFAULT_MIN_BATTERY_MV)
         faulty = apply_fault(manifest, args.fault)
         publish(args.pi_host, firmware, faulty)
         print(f"Published a broken manifest ({args.fault}), version {manifest['version']}, to {args.pi_host}")

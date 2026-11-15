@@ -8,9 +8,10 @@ from pathlib import Path
 
 import pytest
 from cryptography.exceptions import InvalidSignature
-from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec, utils
 
+from conftest import write_key
 from ota_publish import PublishError, build_manifest
 from ota_publish_fault import MANIFEST_FIELDS, apply_fault
 
@@ -40,8 +41,8 @@ def verify(public_key, manifest):
     public_key.verify(signature, digest, ec.ECDSA(utils.Prehashed(hashes.SHA256())))
 
 
-def test_manifest_fields_match_the_device_parser():
-    # Same six fields OTAManagerTest's MissingFieldTest covers.
+def test_manifest_fields_are_the_six_the_device_requires():
+    # Pinned by hand to match OTAManagerTest's MissingFieldTest.
     assert MANIFEST_FIELDS == ("version", "size", "sha256", "signature", "url", "min_battery_mv")
 
 
@@ -81,16 +82,6 @@ def test_apply_fault_does_not_mutate_its_input(manifest):
 def test_unknown_fault_raises(manifest, fault):
     with pytest.raises(PublishError, match="fault"):
         apply_fault(manifest, fault)
-
-
-def write_key(tmp_path, private_key):
-    path = tmp_path / "key.pem"
-    path.write_bytes(
-        private_key.private_bytes(
-            serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()
-        )
-    )
-    return path
 
 
 def run_tool(*args):
