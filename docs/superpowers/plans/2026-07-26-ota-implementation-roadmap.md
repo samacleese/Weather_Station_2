@@ -592,7 +592,7 @@ Plan deviations:
 - 2d: the drop landed during the erase, just after the hold. The plan said at 25%, but streaming takes only ~8 s and the AP script needs an SSH passphrase. The connection is already open during the erase, so it is still a mid-stream drop. The outage was 45 s instead of ~30 s, so the 30 s read timeout fires before the stream can recover.
 - 2h: the Pi was restored with a fresh master build instead of `baseline.bin` (Jesse's choice), and the device was flashed with the same image.
 
-Observations, known and not fixed:
+Observations, known and not fixed, both tracked in #87:
 
 - The log line "Can't connect to WIFI, restart initiated." (`src/network/Network.cpp:157`) is misleading. Nothing restarts: the cycle shows a network error and sleeps.
 - `WiFi.reconnect()` in `WeatherNetwork::reconnect` collided with the driver's own auto-reconnect ("sta is connecting, return error"). The reconnect window was about 12 s.
